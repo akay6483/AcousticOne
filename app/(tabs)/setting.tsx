@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 
-export default function Index() {
+export default function SettingsMenu() {
   return (
     <View>
-      <Text>Control here</Text>
+      <Text>Settings</Text>
     </View>
   );
 }
