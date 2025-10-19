@@ -1,37 +1,57 @@
 import React, { useState } from "react";
-import { StatusBar, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+// This wrapper is required for react-native-gesture-handler
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-export default function Example() {
-  const [volume, setVolume] = useState<number>(25);
+// 1. Import your Knob component
+// (Adjust the path if your index.tsx is not in the same folder as the 'components' folder)
+import { Knob } from "../../components/Knob";
+
+export default function App() {
+  // You can hold the knob's value in state if you need it
+  const [knobValue, setKnobValue] = useState(0);
 
   return (
-    <View style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
+    // 2. Wrap your entire app (or at least this screen)
+    <GestureHandlerRootView style={styles.container}>
+      <View style={styles.content}>
+        <Text style={styles.title}>My Knob</Text>
 
-      <Text style={styles.valueText}>Hello world</Text>
-    </View>
+        {/* 3. Render the Knob component */}
+        <Knob
+          initialValue={25} // Set a starting value
+          onValueChange={(value) => {
+            // This function runs every time the value changes
+            setKnobValue(value);
+            console.log(value);
+          }}
+        />
+
+        {/* Optional: Display the value from state */}
+        <Text style={styles.valueText}>Current Value: {knobValue}</Text>
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: "#ffffffff",
-  },
   container: {
+    flex: 1, // This is for GestureHandlerRootView
+  },
+  content: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-    backgroundColor: "lime",
+    justifyContent: "center",
+    backgroundColor: "#f5f5f5",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "600",
+    marginBottom: 40,
   },
   valueText: {
-    marginTop: 40,
     fontSize: 20,
-    color: "#d6b4b4ff",
-  },
-  boldValue: {
-    color: "#04111fff",
+    marginTop: 30,
+    color: "#333",
   },
 });

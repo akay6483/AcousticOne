@@ -1,12 +1,35 @@
 import AntDesign from "@expo/vector-icons/AntDesign";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Drawer } from "expo-router/drawer";
+import React from "react";
+import { Image, useColorScheme } from "react-native";
+
+function LogoTitle() {
+  const colorScheme = useColorScheme();
+  return (
+    <Image
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+      }}
+      resizeMode="contain"
+      source={
+        colorScheme === "dark"
+          ? require("../assets/images/darkAO.png")
+          : require("../assets/images/lightAO.png")
+      }
+    />
+  );
+}
 
 export default function RootLayout() {
   return (
     <Drawer
       initialRouteName="(tabs)"
       screenOptions={{
+        headerTitle: LogoTitle,
+        headerTitleAlign: "left",
         headerTintColor: "#3dbeffff",
         headerStyle: { backgroundColor: "#25292e" },
         drawerStyle: { backgroundColor: "#1b1d21" },
@@ -18,13 +41,9 @@ export default function RootLayout() {
       <Drawer.Screen
         name="(tabs)"
         options={{
-          title: "Return", // 1. Title changed from "Home" to "Return"
+          title: "Return",
           drawerIcon: ({ color, size }) => (
-            <Ionicons
-              name="arrow-back-outline" // 2. Icon changed from "home"
-              color={color}
-              size={size}
-            />
+            <Ionicons name="arrow-back-outline" color={color} size={size} />
           ),
         }}
       />
@@ -66,13 +85,6 @@ export default function RootLayout() {
           drawerIcon: ({ color, size }) => (
             <AntDesign name="info-circle" color={color} size={size} />
           ),
-        }}
-      />
-
-      <Drawer.Screen
-        name="+not-found" // <-- Remove .tsx
-        options={{
-          href: null,
         }}
       />
     </Drawer>

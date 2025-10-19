@@ -7,6 +7,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: "#3dbeffff",
         tabBarStyle: {
           backgroundColor: "#25292e",
@@ -24,13 +25,6 @@ export default function TabLayout() {
         options={{
           title: "Devices",
           tabBarIcon: ({ color, focused }) => (
-            /*
-            <Ionicons
-              name={focused ? "home-sharp" : "home-outline"}
-              color={color}
-              size={24}
-            />
-            */
             <Ionicons
               name={focused ? "wifi-sharp" : "wifi-outline"}
               color={color}
