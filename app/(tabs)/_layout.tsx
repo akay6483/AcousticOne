@@ -1,4 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+
 import { Tabs } from "expo-router";
 
 export default function TabLayout() {
@@ -40,10 +42,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Control",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "home" : "home-sharp"}
+            <MaterialCommunityIcons
+              name="surround-sound"
               color={color}
               size={24}
             />
@@ -52,12 +54,12 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="setting"
+        name="dsp"
         options={{
-          title: "Settings",
+          title: "DSP",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "settings" : "settings-outline"}
+            <MaterialCommunityIcons
+              name={focused ? "sine-wave" : "square-wave"}
               color={color}
               size={24}
             />
