@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.acousticone.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/lightAO.png",
         "backgroundColor": "#ffffff"
