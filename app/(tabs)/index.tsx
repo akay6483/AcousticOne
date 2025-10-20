@@ -6,7 +6,7 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Dimensions,
   Pressable,
@@ -22,19 +22,16 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Knob } from "../../components/Knob";
 
+// --- IMPORT THEME ---
+import { useTheme } from "../../theme/ThemeContext";
+import { lightColors } from "../../theme/colors"; // Import type
+
+// --- App Theme (REMOVED) ---
+// const theme = { ... };
+
 const { width } = Dimensions.get("window");
 
-// --- App Theme ---
-const theme = {
-  background: "#121212",
-  card: "#1E1E1E",
-  text: "#E1E1E1",
-  primary: "#007AFF",
-  border: "#2C2C2E",
-  icon: "#D0D0D0",
-};
-
-// --- Prop Types ---
+// --- Prop Types (No Change) ---
 type SwitchControlProps = {
   label: string;
   value: boolean;
@@ -46,32 +43,46 @@ type ModalButtonProps = {
   icon: React.ReactNode;
 };
 
-// --- Reusable Sub-components ---
+// --- Reusable Sub-components (Refactored to use useTheme) ---
 const SwitchControl: React.FC<SwitchControlProps> = ({
   label,
   value,
   onValueChange,
-}) => (
-  <View style={styles.switchContainer}>
-    <Text style={styles.switchLabel}>{label}</Text>
-    <Switch
-      trackColor={{ false: "#767577", true: theme.primary }}
-      thumbColor={"#f4f3f4"}
-      onValueChange={onValueChange}
-      value={value}
-    />
-  </View>
-);
+}) => {
+  const { colors } = useTheme(); // SwitchControl gets its own theme
+  const styles = useMemo(() => getSwitchStyles(colors), [colors]); // Memoized styles
 
-const ModalButton: React.FC<ModalButtonProps> = ({ label, onPress, icon }) => (
-  <Pressable style={styles.modalButton} onPress={onPress}>
-    {icon}
-    <Text style={styles.modalButtonText}>{label}</Text>
-  </Pressable>
-);
+  return (
+    <View style={styles.switchContainer}>
+      <Text style={styles.switchLabel}>{label}</Text>
+      <Switch
+        trackColor={{ false: colors.inactiveTint, true: colors.primary }}
+        thumbColor={colors.thumbColor}
+        onValueChange={onValueChange}
+        value={value}
+      />
+    </View>
+  );
+};
 
-// --- Main Screen Component ---
+const ModalButton: React.FC<ModalButtonProps> = ({ label, onPress, icon }) => {
+  const { colors } = useTheme(); // ModalButton gets its own theme
+  const styles = useMemo(() => getModalButtonStyles(colors), [colors]); // Memoized styles
+
+  return (
+    <Pressable style={styles.modalButton} onPress={onPress}>
+      {icon}
+      <Text style={styles.modalButtonText}>{label}</Text>
+    </Pressable>
+  );
+};
+
+// --- Main Screen Component (Refactored) ---
 const ControlScreen: React.FC = () => {
+  const { colors, isDark } = useTheme(); // Get theme colors and dark mode status
+  const styles = useMemo(() => getScreenStyles(colors), [colors]); // Memoized styles
+
+  // --- State (No Change) ---
   const [volume, setVolume] = useState(75);
   const [bass, setBass] = useState(38);
   const [treble, setTreble] = useState(60);
@@ -92,10 +103,9 @@ const ControlScreen: React.FC = () => {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <SafeAreaView style={styles.safeArea}>
-          <StatusBar barStyle="light-content" />
-          {/* The main ScrollView for the whole page */}
+          <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
           <ScrollView contentContainerStyle={styles.mainScrollView}>
-            {/* --- BUTTONS SECTION (HORIZONTALLY SCROLLABLE) --- */}
+            {/* --- BUTTONS SECTION --- */}
             <ScrollView
               horizontal={true}
               showsHorizontalScrollIndicator={false}
@@ -108,7 +118,7 @@ const ControlScreen: React.FC = () => {
                   <MaterialCommunityIcons
                     name="remote"
                     size={20}
-                    color={theme.icon}
+                    color={colors.icon} // Use theme color
                   />
                 }
               />
@@ -116,24 +126,35 @@ const ControlScreen: React.FC = () => {
                 label="Attenuation"
                 onPress={() => openModal("Attenuation")}
                 icon={
-                  <MaterialIcons name="speaker" size={20} color={theme.icon} />
+                  <MaterialIcons
+                    name="speaker"
+                    size={20}
+                    color={colors.icon} // Use theme color
+                  />
                 }
               />
               <ModalButton
                 label="Presets"
                 onPress={() => openModal("Presets")}
                 icon={
-                  <Ionicons name="save-outline" size={20} color={theme.icon} />
+                  <Ionicons
+                    name="save-outline"
+                    size={20}
+                    color={colors.icon} // Use theme color
+                  />
                 }
               />
               <ModalButton
                 label="Sample"
                 onPress={() => openModal("Sample")}
                 icon={
-                  <FontAwesome name="microphone" size={20} color={theme.icon} />
+                  <FontAwesome
+                    name="microphone"
+                    size={20}
+                    color={colors.icon} // Use theme color
+                  />
                 }
               />
-              {/* You can add more buttons here, and they will scroll */}
             </ScrollView>
 
             {/* --- KNOBS SECTION --- */}
@@ -210,72 +231,87 @@ const ControlScreen: React.FC = () => {
 
 export default ControlScreen;
 
-// --- Stylesheet ---
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  mainScrollView: {
-    paddingVertical: 20,
-    paddingBottom: 40,
-  },
-  buttonsScrollView: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  modalButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: theme.card,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.border,
-    marginRight: 12,
-  },
-  modalButtonText: {
-    color: theme.text,
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  knobsSection: {
-    paddingVertical: 10,
-    backgroundColor: theme.card,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  knobRow: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    alignItems: "center",
-  },
-  switchesSection: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    alignContent: "center",
-    backgroundColor: theme.card,
-    paddingVertical: 10,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    marginTop: 20,
-  },
-  switchContainer: {
-    width: "50%",
-    alignItems: "center",
-    paddingVertical: 15,
-  },
-  switchLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 8,
-    color: theme.text,
-  },
-});
+// --- Stylesheet (REMOVED from top level) ---
+
+// --- NEW DYNAMIC STYLE FUNCTIONS ---
+
+// Styles for the main screen
+const getScreenStyles = (colors: typeof lightColors) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    mainScrollView: {
+      paddingVertical: 20,
+      paddingBottom: 40,
+    },
+    buttonsScrollView: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      marginBottom: 20,
+    },
+    knobsSection: {
+      paddingVertical: 10,
+      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    knobRow: {
+      flexDirection: "row",
+      justifyContent: "space-evenly",
+      alignItems: "center",
+    },
+    switchesSection: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      alignContent: "center",
+      backgroundColor: colors.card,
+      paddingVertical: 10,
+      marginHorizontal: 16,
+      borderRadius: 12,
+      marginTop: 20,
+    },
+  });
+
+// Styles for the ModalButton component
+const getModalButtonStyles = (colors: typeof lightColors) =>
+  StyleSheet.create({
+    modalButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: 12,
+    },
+    modalButtonText: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: "600",
+      marginLeft: 8,
+    },
+  });
+
+// Styles for the SwitchControl component
+const getSwitchStyles = (colors: typeof lightColors) =>
+  StyleSheet.create({
+    switchContainer: {
+      width: "50%",
+      alignItems: "center",
+      paddingVertical: 15,
+    },
+    switchLabel: {
+      fontSize: 16,
+      fontWeight: "500",
+      marginBottom: 8,
+      color: colors.text,
+    },
+  });

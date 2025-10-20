@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   ImageBackground,
   Modal,
@@ -9,27 +9,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../theme/ThemeContext"; // Import global theme
+import { lightColors } from "../theme/colors"; // Import type
 
-// --- App Theme ---
-const theme = {
-  background: "#121212",
-  card: "#1E1E1E",
-  text: "#E1E1E1",
-  primary: "#007AFF",
-  border: "#2C2C2E",
-  icon: "#D0D0D0",
-};
+// --- Local themes REMOVED ---
+// const theme = { ... };
+// const remoteTheme = { ... };
 
-// --- Remote-Specific Theme ---
-const remoteTheme = {
-  background: "#3A3A3A",
-  buttonText: "#000000",
-  powerText: "#FFFFFF",
-  playText: "#FFFFFF",
-  eqText: "#FFFFFF",
-};
-
-// --- Button Images ---
+// --- Button Images (no change) ---
 const buttonImages = {
   default: require("../assets/images/button-default.png"),
   red: require("../assets/images/button-red.png"),
@@ -37,7 +24,7 @@ const buttonImages = {
   purple: require("../assets/images/button-purple.png"),
 };
 
-// --- Props ---
+// --- Props (no change) ---
 interface RemoteButtonProps {
   label?: string;
   icon?: React.ReactNode;
@@ -51,7 +38,7 @@ interface RemoteModalProps {
   onClose: () => void;
 }
 
-// --- Remote Button ---
+// --- Remote Button (Refactored to use useTheme) ---
 const RemoteButton: React.FC<RemoteButtonProps> = ({
   label,
   icon,
@@ -59,6 +46,8 @@ const RemoteButton: React.FC<RemoteButtonProps> = ({
   buttonType = "default",
   textColor,
 }) => {
+  const { colors } = useTheme(); // Button gets its own theme
+  const styles = useMemo(() => getButtonStyles(colors), [colors]); // Memoized styles
   const sourceImage = buttonImages[buttonType];
 
   return (
@@ -77,7 +66,7 @@ const RemoteButton: React.FC<RemoteButtonProps> = ({
           <Text
             style={[
               styles.buttonText,
-              { color: textColor || remoteTheme.buttonText },
+              { color: textColor || colors.remoteButtonText }, // Use theme color
             ]}
           >
             {label}
@@ -88,11 +77,14 @@ const RemoteButton: React.FC<RemoteButtonProps> = ({
   );
 };
 
-// --- Remote Modal ---
+// --- Remote Modal (Refactored to use useTheme) ---
 export const RemoteModal: React.FC<RemoteModalProps> = ({
   visible,
   onClose,
 }) => {
+  const { colors } = useTheme(); // Modal gets the theme
+  const styles = useMemo(() => getModalStyles(colors), [colors]); // Memoized styles
+
   const handleButtonPress = (action: string) => {
     console.log(`Remote button pressed: ${action}`);
   };
@@ -112,16 +104,16 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
               <MaterialCommunityIcons
                 name="remote"
                 size={24}
-                color={theme.icon}
+                color={colors.icon} // Use theme color
                 style={styles.headerIcon}
               />
               <Text style={styles.headerTitle}>Remote</Text>
               <Pressable onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={26} color={theme.text} />
+                <Ionicons name="close" size={26} color={colors.text} />
               </Pressable>
             </View>
 
-            {/* Buttons Grid */}
+            {/* Buttons Grid (Updated icon/text colors) */}
             <View style={styles.gridContainer}>
               {/* Row 1 */}
               <RemoteButton
@@ -131,7 +123,7 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
                   <MaterialCommunityIcons
                     name="power"
                     size={32}
-                    color={remoteTheme.powerText}
+                    color={colors.remotePowerText} // Use theme color
                   />
                 }
               />
@@ -145,9 +137,10 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
                   <MaterialCommunityIcons
                     name="volume-off"
                     size={30}
-                    color="black"
+                    color={colors.remoteButtonText} // Use theme color
                   />
                 }
+                F
               />
 
               {/* Row 2 */}
@@ -158,20 +151,28 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
                   <Ionicons
                     name="play"
                     size={28}
-                    color={remoteTheme.playText}
+                    color={colors.remotePlayText} // Use theme color
                   />
                 }
               />
               <RemoteButton
                 onPress={() => handleButtonPress("Previous")}
                 icon={
-                  <Ionicons name="play-skip-back" size={24} color="black" />
+                  <Ionicons
+                    name="play-skip-back"
+                    size={24}
+                    color={colors.remoteButtonText} // Use theme color
+                  />
                 }
               />
               <RemoteButton
                 onPress={() => handleButtonPress("Next")}
                 icon={
-                  <Ionicons name="play-skip-forward" size={24} color="black" />
+                  <Ionicons
+                    name="play-skip-forward"
+                    size={24}
+                    color={colors.remoteButtonText} // Use theme color
+                  />
                 }
               />
 
@@ -180,7 +181,7 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
                 label="EQ"
                 onPress={() => handleButtonPress("EQ")}
                 buttonType="purple"
-                textColor={remoteTheme.eqText}
+                textColor={colors.remoteEqText} // Use theme color
               />
               <RemoteButton
                 label="VOL-"
@@ -191,7 +192,7 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
                 onPress={() => handleButtonPress("Vol+")}
               />
 
-              {/* Row 4 */}
+              {/* Row 4 (no change) */}
               <RemoteButton label="0" onPress={() => handleButtonPress("0")} />
               <RemoteButton
                 label="RPT"
@@ -202,7 +203,7 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
                 onPress={() => handleButtonPress("U/SD")}
               />
 
-              {/* Number Pad */}
+              {/* Number Pad (no change) */}
               {Array.from({ length: 9 }, (_, i) => (
                 <RemoteButton
                   key={i + 1}
@@ -218,82 +219,88 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
   );
 };
 
-// --- Styles ---
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "flex-end",
-  },
-  modalContainer: {
-    backgroundColor: remoteTheme.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 20,
-    paddingBottom: 40,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#555",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 12,
-  },
-  header: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between", // ✅ even spacing
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  headerIcon: {
-    flex: 1,
-    textAlign: "left",
-  },
-  headerTitle: {
-    flex: 2,
-    fontSize: 22,
-    fontWeight: "700",
-    color: theme.text,
-    textAlign: "center",
-  },
-  closeButton: {
-    flex: 1,
-    alignItems: "flex-end",
-  },
-  gridContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    maxWidth: 340,
-    marginTop: 10,
-  },
-  button: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    margin: 10,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  buttonBackground: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  buttonImageStyle: {
-    borderRadius: 40,
-  },
-  buttonText: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-});
+// --- Style factory for the MODAL ---
+const getModalStyles = (colors: typeof lightColors) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: colors.modalOverlay, // Use theme color
+      justifyContent: "flex-end",
+    },
+    modalContainer: {
+      backgroundColor: colors.remoteModalBg, // Use theme color
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingTop: 20,
+      paddingBottom: 40,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: "#555", // This could also be themed: colors.border
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 10,
+      elevation: 12,
+    },
+    header: {
+      width: "100%",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      marginBottom: 20,
+    },
+    headerIcon: {
+      flex: 1,
+      textAlign: "left",
+    },
+    headerTitle: {
+      flex: 2,
+      fontSize: 22,
+      fontWeight: "700",
+      color: colors.text, // Use theme color
+      textAlign: "center",
+    },
+    closeButton: {
+      flex: 1,
+      alignItems: "flex-end",
+    },
+    gridContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      maxWidth: 340,
+      marginTop: 10,
+    },
+  });
+
+// --- Style factory for the BUTTON ---
+const getButtonStyles = (colors: typeof lightColors) =>
+  StyleSheet.create({
+    button: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      margin: 10,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3,
+      elevation: 4,
+    },
+    buttonBackground: {
+      width: "100%",
+      height: "100%",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    buttonImageStyle: {
+      borderRadius: 40,
+    },
+    buttonText: {
+      fontSize: 20,
+      fontWeight: "600",
+      marginTop: 2,
+    },
+  });

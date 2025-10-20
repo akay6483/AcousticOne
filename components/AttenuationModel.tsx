@@ -1,5 +1,5 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Dimensions,
   Modal,
@@ -9,7 +9,9 @@ import {
   View,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaView } from "react-native-safe-area-context"; // ✅ Updated import
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../theme/ThemeContext"; // Import global theme
+import { lightColors } from "../theme/colors"; // Import type
 import { Knob } from "./Knob";
 
 interface AttenuationModalProps {
@@ -17,14 +19,8 @@ interface AttenuationModalProps {
   onClose: () => void;
 }
 
-const theme = {
-  background: "#121212",
-  card: "#1E1E1E",
-  text: "#E1E1E1",
-  primary: "#007AFF",
-  border: "#2C2C2E",
-  icon: "#D0D0D0",
-};
+// --- Local theme REMOVED ---
+// const theme = { ... };
 
 const { width } = Dimensions.get("window");
 
@@ -32,6 +28,10 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
   visible,
   onClose,
 }) => {
+  const { colors } = useTheme(); // Use global theme
+  const styles = useMemo(() => getStyles(colors), [colors]); // Memoize styles
+
+  // --- State (no change) ---
   const [frontLeft, setFrontLeft] = useState(50);
   const [frontRight, setFrontRight] = useState(50);
   const [subwoofer, setSubwoofer] = useState(65);
@@ -56,16 +56,16 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
               <MaterialIcons
                 name="speaker"
                 size={24}
-                color={theme.icon}
+                color={colors.icon} // Use theme color
                 style={styles.headerIcon}
               />
               <Text style={styles.headerTitle}>Attenuation</Text>
               <Pressable onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={26} color={theme.text} />
+                <Ionicons name="close" size={26} color={colors.text} />
               </Pressable>
             </View>
 
-            {/* Knobs Grid */}
+            {/* Knobs Grid (no change) */}
             <View style={styles.gridContainer}>
               <Knob
                 label="Front Left"
@@ -111,46 +111,48 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.6)",
-  },
-  modalBody: {
-    backgroundColor: "#2a2a2e",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    alignItems: "center",
-  },
-  header: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between", // ✅ Evenly space items
-    marginBottom: 24,
-  },
-  headerIcon: {
-    flex: 1,
-    textAlign: "left",
-  },
-  headerTitle: {
-    flex: 2,
-    fontSize: 22,
-    fontWeight: "700",
-    color: theme.text,
-    textAlign: "center",
-  },
-  closeButton: {
-    flex: 1,
-    alignItems: "flex-end",
-  },
-  gridContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-evenly",
-    width: "100%",
-  },
-});
+// --- Style factory function ---
+const getStyles = (colors: typeof lightColors) =>
+  StyleSheet.create({
+    modalContainer: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: colors.modalOverlay, // Use theme color
+    },
+    modalBody: {
+      backgroundColor: colors.modalBackground, // Use theme color
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingVertical: 20,
+      paddingHorizontal: 16,
+      alignItems: "center",
+    },
+    header: {
+      width: "100%",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 24,
+    },
+    headerIcon: {
+      flex: 1,
+      textAlign: "left",
+    },
+    headerTitle: {
+      flex: 2,
+      fontSize: 22,
+      fontWeight: "700",
+      color: colors.text, // Use theme color
+      textAlign: "center",
+    },
+    closeButton: {
+      flex: 1,
+      alignItems: "flex-end",
+    },
+    gridContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-evenly",
+      width: "100%",
+    },
+  });
