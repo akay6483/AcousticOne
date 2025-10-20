@@ -1,7 +1,12 @@
+import { RemoteModal } from "@/components/Remote";
+import {
+  FontAwesome,
+  Ionicons,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   Dimensions,
-  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -12,12 +17,6 @@ import {
   View,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-// Import the icon libraries
-import {
-  FontAwesome,
-  Ionicons,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
 import { Knob } from "../../components/Knob";
 
 const { width } = Dimensions.get("window");
@@ -41,7 +40,7 @@ type SwitchControlProps = {
 type ModalButtonProps = {
   label: string;
   onPress: () => void;
-  icon: React.ReactNode; // To accept icon components
+  icon: React.ReactNode;
 };
 
 // --- Reusable Sub-components ---
@@ -69,7 +68,7 @@ const ModalButton: React.FC<ModalButtonProps> = ({ label, onPress, icon }) => (
 );
 
 // --- Main Screen Component ---
-export default function ControlScreen() {
+const ControlScreen: React.FC = () => {
   const [volume, setVolume] = useState(75);
   const [bass, setBass] = useState(38);
   const [treble, setTreble] = useState(60);
@@ -84,15 +83,20 @@ export default function ControlScreen() {
   const openModal = (name: string) => setModalVisible(name);
   const closeModal = () => setModalVisible(null);
 
-  const KNOB_SIZE = width * 0.4; // All knobs are now the same size
+  const KNOB_SIZE = width * 0.4;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" />
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
-          {/* --- BUTTONS SECTION (MOVED TO TOP) --- */}
-          <View style={styles.buttonsSection}>
+        {/* The main ScrollView for the whole page */}
+        <ScrollView contentContainerStyle={styles.mainScrollView}>
+          {/* --- BUTTONS SECTION (HORIZONTALLY SCROLLABLE) --- */}
+          <ScrollView
+            horizontal={true}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.buttonsScrollView}
+          >
             <ModalButton
               label="Remote"
               onPress={() => openModal("Remote")}
@@ -118,7 +122,8 @@ export default function ControlScreen() {
                 <FontAwesome name="microphone" size={20} color={theme.icon} />
               }
             />
-          </View>
+            {/* You can add more buttons here, and they will scroll */}
+          </ScrollView>
 
           {/* --- KNOBS SECTION --- */}
           <View style={styles.knobsSection}>
@@ -174,20 +179,13 @@ export default function ControlScreen() {
         </ScrollView>
 
         {/* --- MODAL --- */}
-        <Modal visible={!!modalVisible} transparent={true} animationType="fade">
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{modalVisible}</Text>
-              <Pressable onPress={closeModal} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>Close</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
+        <RemoteModal visible={modalVisible === "Remote"} onClose={closeModal} />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
-}
+};
+
+export default ControlScreen;
 
 // --- Stylesheet ---
 const styles = StyleSheet.create({
@@ -195,14 +193,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.background,
   },
-  scrollViewContent: {
+  mainScrollView: {
     paddingVertical: 20,
     paddingBottom: 40,
   },
-  // --- Buttons (now at top) ---
-  buttonsSection: {
+  buttonsScrollView: {
     flexDirection: "row",
-    justifyContent: "space-around",
     alignItems: "center",
     paddingHorizontal: 16,
     marginBottom: 20,
@@ -216,6 +212,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.border,
+    marginRight: 12,
   },
   modalButtonText: {
     color: theme.text,
@@ -223,7 +220,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
-  // --- Knobs ---
   knobsSection: {
     paddingVertical: 10,
     backgroundColor: theme.card,
@@ -237,7 +233,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-evenly",
     alignItems: "center",
   },
-  // --- Switches ---
   switchesSection: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -259,37 +254,5 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: 8,
     color: theme.text,
-  },
-  // --- Modal Styles ---
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.7)",
-  },
-  modalContent: {
-    width: "80%",
-    backgroundColor: theme.card,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: theme.text,
-  },
-  closeButton: {
-    backgroundColor: theme.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-  },
-  closeButtonText: {
-    color: "white",
-    fontWeight: "bold",
   },
 });
