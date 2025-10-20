@@ -15,7 +15,10 @@
       "package": "com.acousticone.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/lightAO.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ffffff",
+        "dark": {
+          "foregroundImage": "./assets/images/darkAO.png"
+        }
       },
       "edgeToEdgeEnabled": true
     },
@@ -32,7 +35,11 @@
           "image": "./assets/images/lightAO.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "./assets/images/darkAO.png",
+            "backgroundColor": "#121212"
+          }
         }
       ]
     ],

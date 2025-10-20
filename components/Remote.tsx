@@ -1,15 +1,16 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import {
+  ImageBackground,
   Modal,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
-// --- App Theme (from your main file) ---
+// --- App Theme ---
 const theme = {
   background: "#121212",
   card: "#1E1E1E",
@@ -19,22 +20,29 @@ const theme = {
   icon: "#D0D0D0",
 };
 
-// --- Remote Specific Theme ---
+// --- Remote-Specific Theme ---
 const remoteTheme = {
-  background: "#424242",
-  buttonDefault: "#C4C4C4",
+  background: "#3A3A3A",
   buttonText: "#000000",
-  power: "#D32F2F",
-  play: "#3F51B5",
-  eq: "#8E24AA",
+  powerText: "#FFFFFF",
+  playText: "#FFFFFF",
+  eqText: "#FFFFFF",
 };
 
-// --- Prop Types ---
+// --- Button Images ---
+const buttonImages = {
+  default: require("../assets/images/button-default.png"),
+  red: require("../assets/images/button-red.png"),
+  blue: require("../assets/images/button-blue.png"),
+  purple: require("../assets/images/button-purple.png"),
+};
+
+// --- Props ---
 interface RemoteButtonProps {
   label?: string;
   icon?: React.ReactNode;
   onPress: () => void;
-  color?: string;
+  buttonType?: "default" | "red" | "blue" | "purple";
   textColor?: string;
 }
 
@@ -43,207 +51,242 @@ interface RemoteModalProps {
   onClose: () => void;
 }
 
-// --- Reusable Button Component ---
+// --- Remote Button ---
 const RemoteButton: React.FC<RemoteButtonProps> = ({
   label,
   icon,
   onPress,
-  color,
+  buttonType = "default",
   textColor,
-}) => (
-  <Pressable
-    style={({ pressed }) => [
-      styles.button,
-      {
-        backgroundColor: color || remoteTheme.buttonDefault,
-        opacity: pressed ? 0.7 : 1,
-      },
-    ]}
-    onPress={onPress}
-  >
-    {icon}
-    {label && (
-      <Text
-        style={[
-          styles.buttonText,
-          { color: textColor || remoteTheme.buttonText },
-        ]}
-      >
-        {label}
-      </Text>
-    )}
-  </Pressable>
-);
+}) => {
+  const sourceImage = buttonImages[buttonType];
 
-// --- Main Remote Modal Component ---
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.button, { opacity: pressed ? 0.75 : 1 }]}
+      onPress={onPress}
+    >
+      <ImageBackground
+        source={sourceImage}
+        style={styles.buttonBackground}
+        imageStyle={styles.buttonImageStyle}
+        resizeMode="cover"
+      >
+        {icon}
+        {label && (
+          <Text
+            style={[
+              styles.buttonText,
+              { color: textColor || remoteTheme.buttonText },
+            ]}
+          >
+            {label}
+          </Text>
+        )}
+      </ImageBackground>
+    </Pressable>
+  );
+};
+
+// --- Remote Modal ---
 export const RemoteModal: React.FC<RemoteModalProps> = ({
   visible,
   onClose,
 }) => {
-  // --- Button Handlers ---
   const handleButtonPress = (action: string) => {
     console.log(`Remote button pressed: ${action}`);
-    // You can add your logic here to send commands
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.remoteBody}>
-          {/* --- Header with Back Button --- */}
-          <View style={styles.header}>
-            <Pressable onPress={onClose} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={28} color={theme.text} />
-            </Pressable>
-          </View>
+    <SafeAreaProvider>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={onClose}
+      >
+        <View style={styles.overlay}>
+          <SafeAreaView style={styles.modalContainer}>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerSpacer} />
+              <Text style={styles.remoteTitle}>Remote</Text>
+              <Pressable onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={28} color={theme.text} />
+              </Pressable>
+            </View>
 
-          {/* --- Button Grid --- */}
-          <View style={styles.gridContainer}>
-            {/* Row 1 */}
-            <RemoteButton
-              onPress={() => handleButtonPress("Power")}
-              color={remoteTheme.power}
-              icon={
-                <MaterialCommunityIcons name="power" size={32} color="white" />
-              }
-            />
-            <RemoteButton
-              label="Mode"
-              onPress={() => handleButtonPress("Mode")}
-            />
-            <RemoteButton
-              onPress={() => handleButtonPress("Mute")}
-              icon={
-                <MaterialCommunityIcons
-                  name="volume-off"
-                  size={30}
-                  color="black"
+            {/* Buttons Grid */}
+            <View style={styles.gridContainer}>
+              {/* Row 1 */}
+              <RemoteButton
+                onPress={() => handleButtonPress("Power")}
+                buttonType="red"
+                icon={
+                  <MaterialCommunityIcons
+                    name="power"
+                    size={32}
+                    color={remoteTheme.powerText}
+                  />
+                }
+              />
+              <RemoteButton
+                label="Mode"
+                onPress={() => handleButtonPress("Mode")}
+              />
+              <RemoteButton
+                onPress={() => handleButtonPress("Mute")}
+                icon={
+                  <MaterialCommunityIcons
+                    name="volume-off"
+                    size={30}
+                    color="black"
+                  />
+                }
+              />
+
+              {/* Row 2 */}
+              <RemoteButton
+                onPress={() => handleButtonPress("Play/Pause")}
+                buttonType="blue"
+                icon={
+                  <Ionicons
+                    name="play"
+                    size={28}
+                    color={remoteTheme.playText}
+                  />
+                }
+              />
+              <RemoteButton
+                onPress={() => handleButtonPress("Previous")}
+                icon={
+                  <Ionicons name="play-skip-back" size={24} color="black" />
+                }
+              />
+              <RemoteButton
+                onPress={() => handleButtonPress("Next")}
+                icon={
+                  <Ionicons name="play-skip-forward" size={24} color="black" />
+                }
+              />
+
+              {/* Row 3 */}
+              <RemoteButton
+                label="EQ"
+                onPress={() => handleButtonPress("EQ")}
+                buttonType="purple"
+                textColor={remoteTheme.eqText}
+              />
+              <RemoteButton
+                label="VOL-"
+                onPress={() => handleButtonPress("Vol-")}
+              />
+              <RemoteButton
+                label="VOL+"
+                onPress={() => handleButtonPress("Vol+")}
+              />
+
+              {/* Row 4 */}
+              <RemoteButton label="0" onPress={() => handleButtonPress("0")} />
+              <RemoteButton
+                label="RPT"
+                onPress={() => handleButtonPress("Repeat")}
+              />
+              <RemoteButton
+                label="U/SD"
+                onPress={() => handleButtonPress("U/SD")}
+              />
+
+              {/* Number Pad */}
+              {Array.from({ length: 9 }, (_, i) => (
+                <RemoteButton
+                  key={i + 1}
+                  label={`${i + 1}`}
+                  onPress={() => handleButtonPress(`${i + 1}`)}
                 />
-              }
-            />
-
-            {/* Row 2 */}
-            <RemoteButton
-              onPress={() => handleButtonPress("Play/Pause")}
-              color={remoteTheme.play}
-              icon={<Ionicons name="play" size={28} color="white" />}
-            />
-            <RemoteButton
-              onPress={() => handleButtonPress("Previous")}
-              icon={<Ionicons name="play-skip-back" size={24} color="black" />}
-            />
-            <RemoteButton
-              onPress={() => handleButtonPress("Next")}
-              icon={
-                <Ionicons name="play-skip-forward" size={24} color="black" />
-              }
-            />
-
-            {/* Row 3 */}
-            <RemoteButton
-              label="EQ"
-              onPress={() => handleButtonPress("EQ")}
-              color={remoteTheme.eq}
-              textColor="white"
-            />
-            <RemoteButton
-              label="VOL-"
-              onPress={() => handleButtonPress("Vol-")}
-            />
-            <RemoteButton
-              label="VOL+"
-              onPress={() => handleButtonPress("Vol+")}
-            />
-
-            {/* Row 4 */}
-            <RemoteButton label="0" onPress={() => handleButtonPress("0")} />
-            <RemoteButton
-              label="RPT"
-              onPress={() => handleButtonPress("Repeat")}
-            />
-            <RemoteButton
-              label="U/SD"
-              onPress={() => handleButtonPress("U/SD")}
-            />
-
-            {/* Number Pad */}
-            <RemoteButton label="1" onPress={() => handleButtonPress("1")} />
-            <RemoteButton label="2" onPress={() => handleButtonPress("2")} />
-            <RemoteButton label="3" onPress={() => handleButtonPress("3")} />
-
-            <RemoteButton label="4" onPress={() => handleButtonPress("4")} />
-            <RemoteButton label="5" onPress={() => handleButtonPress("5")} />
-            <RemoteButton label="6" onPress={() => handleButtonPress("6")} />
-
-            <RemoteButton label="7" onPress={() => handleButtonPress("7")} />
-            <RemoteButton label="8" onPress={() => handleButtonPress("8")} />
-            <RemoteButton label="9" onPress={() => handleButtonPress("9")} />
-          </View>
-
-          <Text style={styles.footerText}>MID</Text>
+              ))}
+            </View>
+          </SafeAreaView>
         </View>
-      </SafeAreaView>
-    </Modal>
+      </Modal>
+    </SafeAreaProvider>
   );
 };
 
-// --- Stylesheet ---
+// --- Styles ---
 const styles = StyleSheet.create({
-  modalContainer: {
+  overlay: {
     flex: 1,
-    justifyContent: "flex-end",
     backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "flex-end",
   },
-  remoteBody: {
+  modalContainer: {
     backgroundColor: remoteTheme.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 30,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#555",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 12,
   },
   header: {
-    width: "100%",
     flexDirection: "row",
-    justifyContent: "flex-start",
-    marginBottom: 15,
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingHorizontal: 20,
+    marginBottom: 10,
   },
-  backButton: {
-    padding: 5,
+  remoteTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: theme.text,
+    textAlign: "center",
+    flex: 1,
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  closeButton: {
+    padding: 6,
   },
   gridContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    width: "100%",
-    maxWidth: 350, // Ensures buttons don't get too far apart on wide screens
+    justifyContent: "center",
+    maxWidth: 340,
+    marginTop: 10,
   },
   button: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
     margin: 10,
-    elevation: 5,
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  buttonBackground: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  buttonImageStyle: {
+    borderRadius: 40,
   },
   buttonText: {
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-  footerText: {
-    marginTop: 20,
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: "500",
+    fontSize: 20,
+    fontWeight: "600",
+    marginTop: 2,
   },
 });
