@@ -109,10 +109,15 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
           <SafeAreaView style={styles.modalContainer}>
             {/* Header */}
             <View style={styles.header}>
-              <View style={styles.headerSpacer} />
-              <Text style={styles.remoteTitle}>Remote</Text>
+              <MaterialCommunityIcons
+                name="remote"
+                size={24}
+                color={theme.icon}
+                style={styles.headerIcon}
+              />
+              <Text style={styles.headerTitle}>Remote</Text>
               <Pressable onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={28} color={theme.text} />
+                <Ionicons name="close" size={26} color={theme.text} />
               </Pressable>
             </View>
 
@@ -236,25 +241,27 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   header: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
+    justifyContent: "space-between", // ✅ even spacing
     paddingHorizontal: 20,
-    marginBottom: 10,
+    marginBottom: 20,
   },
-  remoteTitle: {
+  headerIcon: {
+    flex: 1,
+    textAlign: "left",
+  },
+  headerTitle: {
+    flex: 2,
     fontSize: 22,
     fontWeight: "700",
     color: theme.text,
     textAlign: "center",
-    flex: 1,
-  },
-  headerSpacer: {
-    width: 40,
   },
   closeButton: {
-    padding: 6,
+    flex: 1,
+    alignItems: "flex-end",
   },
   gridContainer: {
     flexDirection: "row",
