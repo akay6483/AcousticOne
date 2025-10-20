@@ -2,10 +2,12 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Drawer } from "expo-router/drawer";
 import React from "react";
-import { Image, useColorScheme } from "react-native";
+import { Image } from "react-native";
+import { ThemeProvider, useTheme } from "../theme/ThemeContext";
 
+// LogoTitle now uses the useTheme hook for consistency
 function LogoTitle() {
-  const colorScheme = useColorScheme();
+  const { isDark } = useTheme();
   return (
     <Image
       style={{
@@ -15,7 +17,7 @@ function LogoTitle() {
       }}
       resizeMode="contain"
       source={
-        colorScheme === "dark"
+        isDark
           ? require("../assets/images/darkAO.png")
           : require("../assets/images/lightAO.png")
       }
@@ -23,18 +25,22 @@ function LogoTitle() {
   );
 }
 
-export default function RootLayout() {
+// This is the new inner component that can access the theme
+function ThemedDrawer() {
+  const { colors } = useTheme();
+
   return (
     <Drawer
       initialRouteName="(tabs)"
       screenOptions={{
         headerTitle: LogoTitle,
         headerTitleAlign: "left",
-        headerTintColor: "#3dbeffff",
-        headerStyle: { backgroundColor: "#25292e" },
-        drawerStyle: { backgroundColor: "#1b1d21" },
-        drawerActiveTintColor: "#3dbeffff",
-        drawerInactiveTintColor: "#ccc",
+        // Apply theme colors
+        headerTintColor: colors.primary,
+        headerStyle: { backgroundColor: colors.headerBackground },
+        drawerStyle: { backgroundColor: colors.drawerBackground },
+        drawerActiveTintColor: colors.primary,
+        drawerInactiveTintColor: colors.inactiveTint,
         drawerPosition: "right",
       }}
     >
@@ -47,17 +53,6 @@ export default function RootLayout() {
           ),
         }}
       />
-
-      <Drawer.Screen
-        name="(drawer)/setting"
-        options={{
-          title: "Settings",
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name={"settings-outline"} color={color} size={size} />
-          ),
-        }}
-      />
-
       <Drawer.Screen
         name="(drawer)/profile"
         options={{
@@ -67,13 +62,12 @@ export default function RootLayout() {
           ),
         }}
       />
-
       <Drawer.Screen
-        name="(drawer)/help"
+        name="(drawer)/setting"
         options={{
-          title: "Help",
+          title: "Settings",
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="help-circle-outline" color={color} size={size} />
+            <Ionicons name={"settings-outline"} color={color} size={size} />
           ),
         }}
       />
@@ -88,5 +82,14 @@ export default function RootLayout() {
         }}
       />
     </Drawer>
+  );
+}
+
+// The main export remains simple, providing the theme and rendering the themed drawer
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <ThemedDrawer />
+    </ThemeProvider>
   );
 }

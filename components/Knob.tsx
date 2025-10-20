@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -8,7 +8,11 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 
-// --- Prop Types ---
+// --- Theme Imports ---
+import { useTheme } from "../theme/ThemeContext";
+import { lightColors } from "../theme/colors";
+
+// --- Prop Types (No Change) ---
 type KnobProps = {
   size: number;
   label: string;
@@ -16,7 +20,7 @@ type KnobProps = {
   onValueChange?: (value: number) => void;
 };
 
-// --- Helper Functions ---
+// --- Helper Functions (No Change) ---
 const getValueFromAngle = (angle: number): number => {
   "worklet";
   const positiveAngle = (angle + 360) % 360;
@@ -28,13 +32,18 @@ const getAngleFromValue = (value: number): number => {
   return value * 3.6;
 };
 
-// --- Main Component ---
+// --- Main Component (Refactored) ---
 export const Knob: React.FC<KnobProps> = ({
   size,
   label,
   initialValue = 0,
   onValueChange,
 }) => {
+  // --- Style & Theme Hook ---
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
+  // --- Animation Logic (No Change) ---
   const CENTER = { x: size / 2, y: size / 2 };
   const rotation = useSharedValue(getAngleFromValue(initialValue));
   const derivedValue = useDerivedValue(() => {
@@ -85,36 +94,39 @@ export const Knob: React.FC<KnobProps> = ({
         </Animated.View>
       </GestureDetector>
 
+      {/* --- Text components now use themed styles --- */}
       <Text style={styles.labelText}>{label.toUpperCase()}</Text>
       <Text style={styles.valueText}>{valueText.value}</Text>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 10, // Add padding to ensure labels don't get cut off
-  },
-  knobImage: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
-    resizeMode: "contain",
-  },
-  indicator: {
-    position: "absolute",
-  },
-  labelText: {
-    marginTop: 4,
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#D0D0D0", // Changed for dark theme
-  },
-  valueText: {
-    fontSize: 16,
-    color: "#A0A0A0", // Changed for dark theme
-    marginTop: 2,
-  },
-});
+// --- Dynamic Style Factory Function ---
+const getStyles = (colors: typeof lightColors) =>
+  StyleSheet.create({
+    container: {
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 10,
+    },
+    knobImage: {
+      position: "absolute",
+      width: "100%",
+      height: "100%",
+      resizeMode: "contain",
+    },
+    indicator: {
+      position: "absolute",
+    },
+    labelText: {
+      marginTop: 4,
+      fontSize: 14,
+      fontWeight: "bold",
+      color: colors.icon, // Use theme color
+    },
+    valueText: {
+      fontSize: 16,
+      color: colors.textMuted, // Use new theme color
+      marginTop: 2,
+    },
+  });

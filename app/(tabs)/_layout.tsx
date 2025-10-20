@@ -1,21 +1,22 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-
 import { Tabs } from "expo-router";
+import { useTheme } from "../../theme/ThemeContext"; // Import useTheme
 
 export default function TabLayout() {
+  const { colors } = useTheme(); // Get the current theme colors
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#3dbeffff",
+        tabBarActiveTintColor: colors.primary, // Use theme color
         tabBarStyle: {
-          backgroundColor: "#25292e",
+          backgroundColor: colors.tabBarBackground, // Use theme color
         },
-
-        headerTintColor: "#3dbeffff",
+        headerTintColor: colors.primary, // Use theme color
         headerStyle: {
-          backgroundColor: "#25292e",
+          backgroundColor: colors.headerBackground, // Use theme color
         },
         headerShadowVisible: false,
       }}
