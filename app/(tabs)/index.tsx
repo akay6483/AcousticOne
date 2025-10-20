@@ -1,8 +1,10 @@
-import { RemoteModal } from "@/components/Remote";
+import { AttenuationModal } from "@/components/AttenuationModel";
+import { RemoteModal } from "@/components/RemoteModal";
 import {
   FontAwesome,
   Ionicons,
   MaterialCommunityIcons,
+  MaterialIcons,
 } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
@@ -17,6 +19,7 @@ import {
   View,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Knob } from "../../components/Knob";
 
 const { width } = Dimensions.get("window");
@@ -87,100 +90,120 @@ const ControlScreen: React.FC = () => {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" />
-        {/* The main ScrollView for the whole page */}
-        <ScrollView contentContainerStyle={styles.mainScrollView}>
-          {/* --- BUTTONS SECTION (HORIZONTALLY SCROLLABLE) --- */}
-          <ScrollView
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.buttonsScrollView}
-          >
-            <ModalButton
-              label="Remote"
-              onPress={() => openModal("Remote")}
-              icon={
-                <MaterialCommunityIcons
-                  name="remote"
-                  size={20}
-                  color={theme.icon}
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.safeArea}>
+          <StatusBar barStyle="light-content" />
+          {/* The main ScrollView for the whole page */}
+          <ScrollView contentContainerStyle={styles.mainScrollView}>
+            {/* --- BUTTONS SECTION (HORIZONTALLY SCROLLABLE) --- */}
+            <ScrollView
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.buttonsScrollView}
+            >
+              <ModalButton
+                label="Remote"
+                onPress={() => openModal("Remote")}
+                icon={
+                  <MaterialCommunityIcons
+                    name="remote"
+                    size={20}
+                    color={theme.icon}
+                  />
+                }
+              />
+              <ModalButton
+                label="Attenuation"
+                onPress={() => openModal("Attenuation")}
+                icon={
+                  <MaterialIcons name="speaker" size={20} color={theme.icon} />
+                }
+              />
+              <ModalButton
+                label="Presets"
+                onPress={() => openModal("Presets")}
+                icon={
+                  <Ionicons name="save-outline" size={20} color={theme.icon} />
+                }
+              />
+              <ModalButton
+                label="Sample"
+                onPress={() => openModal("Sample")}
+                icon={
+                  <FontAwesome name="microphone" size={20} color={theme.icon} />
+                }
+              />
+              {/* You can add more buttons here, and they will scroll */}
+            </ScrollView>
+
+            {/* --- KNOBS SECTION --- */}
+            <View style={styles.knobsSection}>
+              <View style={styles.knobRow}>
+                <Knob
+                  label="Volume"
+                  size={KNOB_SIZE}
+                  initialValue={volume}
+                  onValueChange={setVolume}
                 />
-              }
-            />
-            <ModalButton
-              label="Presets"
-              onPress={() => openModal("Presets")}
-              icon={
-                <Ionicons name="save-outline" size={20} color={theme.icon} />
-              }
-            />
-            <ModalButton
-              label="Sample"
-              onPress={() => openModal("Sample")}
-              icon={
-                <FontAwesome name="microphone" size={20} color={theme.icon} />
-              }
-            />
-            {/* You can add more buttons here, and they will scroll */}
+                <Knob
+                  label="Treble"
+                  size={KNOB_SIZE}
+                  initialValue={treble}
+                  onValueChange={setTreble}
+                />
+              </View>
+              <View style={styles.knobRow}>
+                <Knob
+                  label="Mid"
+                  size={KNOB_SIZE}
+                  initialValue={mid}
+                  onValueChange={setMid}
+                />
+                <Knob
+                  label="Bass"
+                  size={KNOB_SIZE}
+                  initialValue={bass}
+                  onValueChange={setBass}
+                />
+              </View>
+            </View>
+
+            {/* --- SWITCHES SECTION --- */}
+            <View style={styles.switchesSection}>
+              <SwitchControl
+                label="Prologic"
+                value={prologic}
+                onValueChange={setPrologic}
+              />
+              <SwitchControl
+                label="Tone"
+                value={tone}
+                onValueChange={setTone}
+              />
+              <SwitchControl
+                label="Surround Enhance"
+                value={surround}
+                onValueChange={setSurround}
+              />
+              <SwitchControl
+                label="Mixed Channel"
+                value={mixed}
+                onValueChange={setMixed}
+              />
+            </View>
           </ScrollView>
 
-          {/* --- KNOBS SECTION --- */}
-          <View style={styles.knobsSection}>
-            <View style={styles.knobRow}>
-              <Knob
-                label="Volume"
-                size={KNOB_SIZE}
-                initialValue={volume}
-                onValueChange={setVolume}
-              />
-              <Knob
-                label="Treble"
-                size={KNOB_SIZE}
-                initialValue={treble}
-                onValueChange={setTreble}
-              />
-            </View>
-            <View style={styles.knobRow}>
-              <Knob
-                label="Mid"
-                size={KNOB_SIZE}
-                initialValue={mid}
-                onValueChange={setMid}
-              />
-              <Knob
-                label="Bass"
-                size={KNOB_SIZE}
-                initialValue={bass}
-                onValueChange={setBass}
-              />
-            </View>
-          </View>
-
-          {/* --- SWITCHES SECTION --- */}
-          <View style={styles.switchesSection}>
-            <SwitchControl
-              label="Prologic"
-              value={prologic}
-              onValueChange={setPrologic}
-            />
-            <SwitchControl label="Tone" value={tone} onValueChange={setTone} />
-            <SwitchControl
-              label="Surround Enhance"
-              value={surround}
-              onValueChange={setSurround}
-            />
-            <SwitchControl
-              label="Mixed Channel"
-              value={mixed}
-              onValueChange={setMixed}
-            />
-          </View>
-        </ScrollView>
-
-        {/* --- MODAL --- */}
-        <RemoteModal visible={modalVisible === "Remote"} onClose={closeModal} />
-      </SafeAreaView>
+          {/* --- MODALS --- */}
+          <RemoteModal
+            visible={modalVisible === "Remote"}
+            onClose={closeModal}
+          />
+          <AttenuationModal
+            visible={modalVisible === "Attenuation"}
+            onClose={closeModal}
+          />
+        </SafeAreaView>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 };
