@@ -12,10 +12,6 @@ import {
 } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
 import { lightColors } from "../theme/colors"; // Import type
-// Use the new dialogue modal filenames
-import { DeleteDialogueModal } from "./DeleteDialogueModal";
-import { LoadDialogueModal } from "./LoadDialogueModal";
-import { SaveDialogueModal } from "./SaveDialogueModal";
 
 // --- PROPS ---
 type PresetModalProps = {
@@ -203,26 +199,6 @@ export const PresetModal: React.FC<PresetModalProps> = ({
           </View>
         </View>
       </View>
-
-      {/* --- Confirmation Dialogs (using new names) --- */}
-      <LoadDialogueModal
-        visible={showLoadConfirm}
-        presetName={presetToLoad?.name || ""}
-        onCancel={cancelLoad}
-        onConfirm={confirmLoad}
-      />
-      <SaveDialogueModal
-        visible={showSaveConfirm}
-        presetName={presetName}
-        onCancel={cancelSave}
-        onConfirm={confirmSave}
-      />
-      <DeleteDialogueModal
-        visible={showDeleteConfirm}
-        presetName={presetToDelete?.name || ""}
-        onCancel={cancelDelete}
-        onConfirm={confirmDelete}
-      />
     </Modal>
   );
 };
@@ -261,7 +237,7 @@ const TabButton: React.FC<TabButtonProps> = ({
   );
 };
 
-// --- Preset List Item (Updated) ---
+// --- Preset List Item (reused by Load and Delete) ---
 type PresetItemProps = {
   preset: Preset;
   isActive: boolean;
@@ -292,12 +268,11 @@ const PresetItem: React.FC<PresetItemProps> = ({
   );
 };
 
-// --- Preset List View (Updated) ---
-type PresetListViewProps = {
-  customPresets: Preset[];
-  defaultPresets: Preset[];
-  onLoadPress: (preset: Preset) => void;
-  onDeletePress: (preset: Preset) => void;
+// --- Load View ---
+type LoadViewProps = {
+  customPresets: typeof DUMMY_CUSTOM_PRESETS;
+  defaultPresets: typeof GTZAN_PRESETS;
+  onLoad: (id: string) => void;
   activePresetId: string | null;
   mode: ActiveTab;
 };
@@ -394,7 +369,7 @@ const SaveView: React.FC<SaveViewProps> = ({
           <FontAwesome5
             name="file-download"
             size={20}
-            color={colors.background}
+            color={colors.background} // White text on primary button
           />
         </Pressable>
       </View>
