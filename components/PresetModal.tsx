@@ -132,74 +132,113 @@ export const PresetModal: React.FC<PresetModalProps> = ({
 
   // --- RENDER ---
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {/* --- Header --- */}
-          <View style={styles.header}>
-            <Ionicons
-              name="save"
-              size={24}
-              color={colors.icon}
-              style={styles.headerIcon}
-            />
-            <Text style={styles.title}>Preset</Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={28} color={colors.icon} />
-            </Pressable>
-          </View>
-
-          {/* --- Tabs with Icons --- */}
-          <View style={styles.tabContainer}>
-            <TabButton
-              label="Load"
-              icon={<FontAwesome5 name="file-upload" size={18} />}
-              isActive={activeTab === "load"}
-              onPress={() => setActiveTab("load")}
-            />
-            <TabButton
-              label="Save"
-              icon={<FontAwesome5 name="file-download" size={18} />}
-              isActive={activeTab === "save"}
-              onPress={() => setActiveTab("save")}
-            />
-            <TabButton
-              label="Delete"
-              icon={<Ionicons name="trash-outline" size={20} />}
-              isActive={activeTab === "delete"}
-              onPress={() => setActiveTab("delete")}
-            />
-          </View>
-
-          {/* --- Content --- */}
-          <View style={styles.contentContainer}>
-            {/* Show Save UI only on Save tab */}
-            {activeTab === "save" && (
-              <SaveView
-                presetName={presetName}
-                setPresetName={setPresetName}
-                onSave={handleSavePress} // Triggers confirmation
+    // Wrap with React.Fragment
+    <>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={visible}
+        onRequestClose={onClose}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.container}>
+            {/* --- Header --- */}
+            <View style={styles.header}>
+              <Ionicons
+                name="save"
+                size={24}
+                color={colors.icon}
+                style={styles.headerIcon}
               />
-            )}
+              <Text style={styles.title}>Preset</Text>
+              <Pressable onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={28} color={colors.icon} />
+              </Pressable>
+            </View>
 
-            {/* Always show the unified list */}
-            <PresetListView
-              customPresets={customPresets}
-              defaultPresets={GTZAN_PRESETS}
-              onLoadPress={handleLoadPress} // Triggers confirmation
-              onDeletePress={handleDeletePress} // Triggers confirmation
-              activePresetId={activePresetId}
-              mode={activeTab} // Pass 'load', 'save', or 'delete'
-            />
+            {/* --- Tabs with Icons --- */}
+            <View style={styles.tabContainer}>
+              <TabButton
+                label="Load"
+                icon={<FontAwesome5 name="file-upload" size={18} />}
+                isActive={activeTab === "load"}
+                onPress={() => setActiveTab("load")}
+              />
+              <TabButton
+                label="Save"
+                icon={<FontAwesome5 name="file-download" size={18} />}
+                isActive={activeTab === "save"}
+                onPress={() => setActiveTab("save")}
+              />
+              <TabButton
+                label="Delete"
+                icon={<Ionicons name="trash-outline" size={20} />}
+                isActive={activeTab === "delete"}
+                onPress={() => setActiveTab("delete")}
+              />
+            </View>
+
+            {/* --- Content --- */}
+            <View style={styles.contentContainer}>
+              {/* Show Save UI only on Save tab */}
+              {activeTab === "save" && (
+                <SaveView
+                  presetName={presetName}
+                  setPresetName={setPresetName}
+                  onSave={handleSavePress} // Triggers confirmation
+                />
+              )}
+
+              {/* Always show the unified list */}
+              <PresetListView
+                customPresets={customPresets}
+                defaultPresets={GTZAN_PRESETS}
+                onLoadPress={handleLoadPress} // Triggers confirmation
+                onDeletePress={handleDeletePress} // Triggers confirmation
+                activePresetId={activePresetId}
+                mode={activeTab} // Pass 'load', 'save', or 'delete'
+              />
+            </View>
           </View>
         </View>
+<<<<<<< HEAD:components/PresetModel.tsx
       </View>
     </Modal>
+=======
+      </Modal>
+
+      {/* --- Confirmation Dialogs (MOVED OUTSIDE) --- */}
+      <ConfirmationModal
+        visible={showLoadConfirm}
+        title="Load Preset?"
+        message={`Are you sure you want to load "${
+          presetToLoad?.name || ""
+        }"? Any unsaved changes will be lost.`}
+        confirmButtonLabel="Load"
+        onCancel={cancelLoad}
+        onConfirm={confirmLoad}
+      />
+      <ConfirmationModal
+        visible={showSaveConfirm}
+        title="Save Preset?"
+        message={`Are you sure you want to save the current mapping as "${presetName}"?`}
+        confirmButtonLabel="Save"
+        onCancel={cancelSave}
+        onConfirm={confirmSave}
+      />
+      <ConfirmationModal
+        visible={showDeleteConfirm}
+        title="Delete Preset?"
+        message={`Are you sure you want to delete "${
+          presetToDelete?.name || ""
+        }"? This action cannot be undone.`}
+        confirmButtonLabel="Delete"
+        confirmButtonColor={colors.error} // Pass the red color
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+      />
+    </>
+>>>>>>> fa49d54 (Fragmented the presst dialogues, defined device screen.):components/PresetModal.tsx
   );
 };
 
@@ -369,7 +408,11 @@ const SaveView: React.FC<SaveViewProps> = ({
           <FontAwesome5
             name="file-download"
             size={20}
+<<<<<<< HEAD:components/PresetModel.tsx
             color={colors.background} // White text on primary button
+=======
+            color={colors.background}
+>>>>>>> fa49d54 (Fragmented the presst dialogues, defined device screen.):components/PresetModal.tsx
           />
         </Pressable>
       </View>
