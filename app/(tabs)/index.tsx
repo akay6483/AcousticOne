@@ -1,4 +1,5 @@
 import { AttenuationModal } from "@/components/AttenuationModel";
+import { PresetModal } from "@/components/PresetModel"; // <-- 1. IMPORT PRESET MODAL
 import { RemoteModal } from "@/components/RemoteModal";
 import {
   FontAwesome,
@@ -136,13 +137,7 @@ const ControlScreen: React.FC = () => {
               <ModalButton
                 label="Presets"
                 onPress={() => openModal("Presets")}
-                icon={
-                  <Ionicons
-                    name="save-outline"
-                    size={20}
-                    color={colors.icon} // Use theme color
-                  />
-                }
+                icon={<Ionicons name="save" size={20} color={colors.icon} />}
               />
               <ModalButton
                 label="Sample"
@@ -223,6 +218,11 @@ const ControlScreen: React.FC = () => {
             visible={modalVisible === "Attenuation"}
             onClose={closeModal}
           />
+          <PresetModal
+            visible={modalVisible === "Presets"}
+            onClose={closeModal}
+          />
+          {/* <-- 2. RENDER PRESET MODAL */}
         </SafeAreaView>
       </SafeAreaProvider>
     </GestureHandlerRootView>
