@@ -12,11 +12,8 @@ import {
 } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
 import { lightColors } from "../theme/colors"; // Import type
-<<<<<<< HEAD
-=======
 // Import the single new modal
 import { ConfirmationModal } from "./ConfirmationModal";
->>>>>>> fa49d54d6366dd02290ab266422424f392d1bc2f
 
 // --- PROPS ---
 type PresetModalProps = {
@@ -206,13 +203,6 @@ export const PresetModal: React.FC<PresetModalProps> = ({
             </View>
           </View>
         </View>
-<<<<<<< HEAD
-<<<<<<< HEAD:components/PresetModel.tsx
-      </View>
-    </Modal>
-=======
-=======
->>>>>>> fa49d54d6366dd02290ab266422424f392d1bc2f
       </Modal>
 
       {/* --- Confirmation Dialogs (MOVED OUTSIDE) --- */}
@@ -246,10 +236,6 @@ export const PresetModal: React.FC<PresetModalProps> = ({
         onConfirm={confirmDelete}
       />
     </>
-<<<<<<< HEAD
->>>>>>> fa49d54 (Fragmented the presst dialogues, defined device screen.):components/PresetModal.tsx
-=======
->>>>>>> fa49d54d6366dd02290ab266422424f392d1bc2f
   );
 };
 
@@ -287,11 +273,7 @@ const TabButton: React.FC<TabButtonProps> = ({
   );
 };
 
-<<<<<<< HEAD
-// --- Preset List Item (reused by Load and Delete) ---
-=======
 // --- Preset List Item (No Change) ---
->>>>>>> fa49d54d6366dd02290ab266422424f392d1bc2f
 type PresetItemProps = {
   preset: Preset;
   isActive: boolean;
@@ -322,20 +304,12 @@ const PresetItem: React.FC<PresetItemProps> = ({
   );
 };
 
-<<<<<<< HEAD
-// --- Load View ---
-type LoadViewProps = {
-  customPresets: typeof DUMMY_CUSTOM_PRESETS;
-  defaultPresets: typeof GTZAN_PRESETS;
-  onLoad: (id: string) => void;
-=======
 // --- Preset List View (No Change) ---
 type PresetListViewProps = {
   customPresets: Preset[];
   defaultPresets: Preset[];
   onLoadPress: (preset: Preset) => void;
   onDeletePress: (preset: Preset) => void;
->>>>>>> fa49d54d6366dd02290ab266422424f392d1bc2f
   activePresetId: string | null;
   mode: ActiveTab;
 };
@@ -432,15 +406,7 @@ const SaveView: React.FC<SaveViewProps> = ({
           <FontAwesome5
             name="file-download"
             size={20}
-<<<<<<< HEAD
-<<<<<<< HEAD:components/PresetModel.tsx
-            color={colors.background} // White text on primary button
-=======
             color={colors.background}
->>>>>>> fa49d54 (Fragmented the presst dialogues, defined device screen.):components/PresetModal.tsx
-=======
-            color={colors.background}
->>>>>>> fa49d54d6366dd02290ab266422424f392d1bc2f
           />
         </Pressable>
       </View>
