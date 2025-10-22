@@ -1,4 +1,4 @@
-import { FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { AntDesign, FontAwesome5, Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
   Modal,
@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
 import { lightColors } from "../theme/colors"; // Import type
+// Import the single new modal
+import { ConfirmationModal } from "./ConfirmationModal";
 
 // --- PROPS ---
 type PresetModalProps = {
@@ -19,9 +21,14 @@ type PresetModalProps = {
   onClose: () => void;
 };
 
+// --- PRESET DATA TYPES ---
+type Preset = {
+  id: string;
+  name: string;
+};
+
 // --- PRESET DATA ---
-// Hard-coded default presets from your CSV file
-const GTZAN_PRESETS = [
+const GTZAN_PRESETS: Preset[] = [
   { id: "gtzan-1", name: "Blues" },
   { id: "gtzan-2", name: "Classical" },
   { id: "gtzan-3", name: "Country" },
@@ -34,8 +41,7 @@ const GTZAN_PRESETS = [
   { id: "gtzan-10", name: "Rock" },
 ];
 
-// Dummy custom presets for demonstration
-const DUMMY_CUSTOM_PRESETS = [
+const DUMMY_CUSTOM_PRESETS: Preset[] = [
   { id: "c1", name: "My Custom 1" },
   { id: "c2", name: "Bass Boosted" },
 ];
@@ -54,35 +60,76 @@ export const PresetModal: React.FC<PresetModalProps> = ({
   const [activeTab, setActiveTab] = useState<ActiveTab>("load");
   const [presetName, setPresetName] = useState("Custom 1");
 
-  // Separate state for custom vs. default presets
+  // State for presets
   const [customPresets, setCustomPresets] = useState(DUMMY_CUSTOM_PRESETS);
-  const [activePresetId, setActivePresetId] = useState<string | null>("c1"); // 'c1' is active by default
+  const [activePresetId, setActivePresetId] = useState<string | null>("c1");
+
+  // State for confirmation dialogs
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [presetToDelete, setPresetToDelete] = useState<Preset | null>(null);
+
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
+  const [showLoadConfirm, setShowLoadConfirm] = useState(false);
+  const [presetToLoad, setPresetToLoad] = useState<Preset | null>(null);
 
   // --- Handlers ---
-  const handleLoad = (id: string) => {
-    console.log("Loading preset:", id);
-    setActivePresetId(id); // Set the active ID
+
+  // LOAD
+  const handleLoadPress = (preset: Preset) => {
+    setPresetToLoad(preset);
+    setShowLoadConfirm(true);
+  };
+  const confirmLoad = () => {
+    if (!presetToLoad) return;
+    console.log("Loading preset:", presetToLoad.id);
+    setActivePresetId(presetToLoad.id);
     // Add actual load logic here
+    cancelLoad();
+  };
+  const cancelLoad = () => {
+    setShowLoadConfirm(false);
+    setPresetToLoad(null);
   };
 
-  const handleSave = () => {
+  // SAVE
+  const handleSavePress = () => {
+    if (presetName.trim().length === 0) {
+      alert("Please enter a preset name.");
+      return;
+    }
+    setShowSaveConfirm(true);
+  };
+  const confirmSave = () => {
     console.log("Saving preset:", presetName);
-    // Add save logic here
     const newPreset = { id: Date.now().toString(), name: presetName };
     setCustomPresets([...customPresets, newPreset]);
-    setActivePresetId(newPreset.id); // Set new preset as active
+    setActivePresetId(newPreset.id);
     setPresetName("Custom 1"); // Reset input
-    setActiveTab("load"); // Switch to load tab
+    cancelSave();
+    setActiveTab("load"); // Switch to load tab after saving
+  };
+  const cancelSave = () => {
+    setShowSaveConfirm(false);
   };
 
-  const handleDelete = (id: string) => {
-    console.log("Deleting preset:", id);
-    // Add delete logic here
-    setCustomPresets(customPresets.filter((p) => p.id !== id));
-    // If deleting the active preset, reset active ID
-    if (activePresetId === id) {
+  // DELETE
+  const handleDeletePress = (preset: Preset) => {
+    setPresetToDelete(preset);
+    setShowDeleteConfirm(true);
+  };
+  const confirmDelete = () => {
+    if (!presetToDelete) return;
+    console.log("Deleting preset:", presetToDelete.id);
+    setCustomPresets(customPresets.filter((p) => p.id !== presetToDelete.id));
+    if (activePresetId === presetToDelete.id) {
       setActivePresetId(null);
     }
+    cancelDelete();
+  };
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setPresetToDelete(null);
   };
 
   // --- RENDER ---
@@ -95,7 +142,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          {/* --- Header (Aligned like AttenuationModel) --- */}
+          {/* --- Header --- */}
           <View style={styles.header}>
             <Ionicons
               name="save"
@@ -109,20 +156,23 @@ export const PresetModal: React.FC<PresetModalProps> = ({
             </Pressable>
           </View>
 
-          {/* --- Tabs --- */}
+          {/* --- Tabs with Icons --- */}
           <View style={styles.tabContainer}>
             <TabButton
               label="Load"
+              icon={<FontAwesome5 name="file-upload" size={18} />}
               isActive={activeTab === "load"}
               onPress={() => setActiveTab("load")}
             />
             <TabButton
               label="Save"
+              icon={<FontAwesome5 name="file-download" size={18} />}
               isActive={activeTab === "save"}
               onPress={() => setActiveTab("save")}
             />
             <TabButton
               label="Delete"
+              icon={<Ionicons name="trash-outline" size={20} />}
               isActive={activeTab === "delete"}
               onPress={() => setActiveTab("delete")}
             />
@@ -130,134 +180,172 @@ export const PresetModal: React.FC<PresetModalProps> = ({
 
           {/* --- Content --- */}
           <View style={styles.contentContainer}>
-            {activeTab === "load" && (
-              <LoadView
-                customPresets={customPresets}
-                defaultPresets={GTZAN_PRESETS}
-                onLoad={handleLoad}
-                activePresetId={activePresetId}
-              />
-            )}
+            {/* Show Save UI only on Save tab */}
             {activeTab === "save" && (
               <SaveView
                 presetName={presetName}
                 setPresetName={setPresetName}
-                onSave={handleSave}
+                onSave={handleSavePress} // Triggers confirmation
               />
             )}
-            {activeTab === "delete" && (
-              <DeleteView
-                presets={customPresets} // Only pass custom presets
-                onDelete={handleDelete}
-              />
-            )}
+
+            {/* Always show the unified list */}
+            <PresetListView
+              customPresets={customPresets}
+              defaultPresets={GTZAN_PRESETS}
+              onLoadPress={handleLoadPress} // Triggers confirmation
+              onDeletePress={handleDeletePress} // Triggers confirmation
+              activePresetId={activePresetId}
+              mode={activeTab} // Pass 'load', 'save', or 'delete'
+            />
           </View>
         </View>
       </View>
+
+      {/* --- Confirmation Dialogs (using ONE component) --- */}
+      <ConfirmationModal
+        visible={showLoadConfirm}
+        title="Load Preset?"
+        message={`Are you sure you want to load "${
+          presetToLoad?.name || ""
+        }"? Any unsaved changes will be lost.`}
+        confirmButtonLabel="Load"
+        onCancel={cancelLoad}
+        onConfirm={confirmLoad}
+      />
+      <ConfirmationModal
+        visible={showSaveConfirm}
+        title="Save Preset?"
+        message={`Are you sure you want to save the current mapping as "${presetName}"?`}
+        confirmButtonLabel="Save"
+        onCancel={cancelSave}
+        onConfirm={confirmSave}
+      />
+      <ConfirmationModal
+        visible={showDeleteConfirm}
+        title="Delete Preset?"
+        message={`Are you sure you want to delete "${
+          presetToDelete?.name || ""
+        }"? This action cannot be undone.`}
+        confirmButtonLabel="Delete"
+        confirmButtonColor={colors.error} // Pass the red color
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+      />
     </Modal>
   );
 };
 
 // --- SUB-COMPONENTS ---
 
+// --- TabButton (No Change) ---
 type TabButtonProps = {
   label: string;
+  icon: React.ReactNode;
   isActive: boolean;
   onPress: () => void;
 };
-
-const TabButton: React.FC<TabButtonProps> = ({ label, isActive, onPress }) => {
+const TabButton: React.FC<TabButtonProps> = ({
+  label,
+  icon,
+  isActive,
+  onPress,
+}) => {
   const { colors } = useTheme();
   const styles = useMemo(() => getModalStyles(colors), [colors]);
+
+  const iconColor = isActive ? colors.background : colors.text;
+  const textColor = isActive ? colors.background : colors.text;
 
   return (
     <TouchableOpacity
       style={[styles.tabButton, isActive && styles.tabButtonActive]}
       onPress={onPress}
     >
-      <Text
-        style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}
-      >
-        {label}
-      </Text>
+      {React.cloneElement(icon as React.ReactElement, {
+        color: iconColor,
+      })}
+      <Text style={[styles.tabButtonText, { color: textColor }]}>{label}</Text>
     </TouchableOpacity>
   );
 };
 
-// --- Preset List Item (reused by Load and Delete) ---
+// --- Preset List Item (No Change) ---
 type PresetItemProps = {
-  name: string;
-  icon: React.ReactNode;
-  onPress: () => void;
-  isActive?: boolean; // Optional: used for highlighting in LoadView
+  preset: Preset;
+  isActive: boolean;
+  isInteractive: boolean;
+  onItemPress: () => void;
 };
-
 const PresetItem: React.FC<PresetItemProps> = ({
-  name,
-  icon,
-  onPress,
+  preset,
   isActive,
+  isInteractive,
+  onItemPress,
 }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => getModalStyles(colors), [colors]);
 
-  let finalIcon = icon;
-
-  // Clone the icon element to apply conditional coloring
-  if (isActive !== undefined) {
-    // Used by LoadView: apply active or default color
-    finalIcon = React.cloneElement(icon as React.ReactElement, {
-      color: isActive ? colors.primary : colors.icon,
-    });
-  } else {
-    // Used by DeleteView: apply default color
-    finalIcon = React.cloneElement(icon as React.ReactElement, {
-      color: colors.icon,
-    });
-  }
-
   return (
     <View style={styles.presetItem}>
-      <Text style={[styles.presetName, isActive && styles.presetNameActive]}>
-        {name}
-      </Text>
-      <Pressable style={styles.iconButton} onPress={onPress}>
-        {finalIcon}
+      <Pressable
+        style={styles.presetNameButton}
+        onPress={onItemPress}
+        disabled={!isInteractive}
+      >
+        <Text style={[styles.presetName, isActive && styles.presetNameActive]}>
+          {preset.name}
+        </Text>
       </Pressable>
     </View>
   );
 };
 
-// --- Load View ---
-type LoadViewProps = {
-  customPresets: typeof DUMMY_CUSTOM_PRESETS;
-  defaultPresets: typeof GTZAN_PRESETS;
-  onLoad: (id: string) => void;
+// --- Preset List View (No Change) ---
+type PresetListViewProps = {
+  customPresets: Preset[];
+  defaultPresets: Preset[];
+  onLoadPress: (preset: Preset) => void;
+  onDeletePress: (preset: Preset) => void;
   activePresetId: string | null;
+  mode: ActiveTab;
 };
-const LoadView: React.FC<LoadViewProps> = ({
+const PresetListView: React.FC<PresetListViewProps> = ({
   customPresets,
   defaultPresets,
-  onLoad,
+  onLoadPress,
+  onDeletePress,
   activePresetId,
+  mode,
 }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => getModalStyles(colors), [colors]);
+
   return (
     <ScrollView
-      style={styles.presetList}
+      style={[styles.presetList, mode === "save" && styles.presetListSaveMode]}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
       {/* --- Custom Presets --- */}
-      {customPresets.map((preset) => (
-        <PresetItem
-          key={preset.id}
-          name={preset.name}
-          icon={<FontAwesome5 name="file-upload" size={20} />}
-          onPress={() => onLoad(preset.id)}
-          isActive={activePresetId === preset.id}
-        />
-      ))}
+      {customPresets.map((preset) => {
+        // Interactive if in 'load' mode OR 'delete' mode
+        const isInteractive = mode === "load" || mode === "delete";
+        // Action changes based on the mode
+        const tapAction =
+          mode === "load"
+            ? () => onLoadPress(preset)
+            : () => onDeletePress(preset);
+
+        return (
+          <PresetItem
+            key={preset.id}
+            preset={preset}
+            isActive={activePresetId === preset.id}
+            isInteractive={isInteractive}
+            onItemPress={tapAction}
+          />
+        );
+      })}
 
       {/* --- Separator --- */}
       {defaultPresets.length > 0 && customPresets.length > 0 && (
@@ -267,20 +355,27 @@ const LoadView: React.FC<LoadViewProps> = ({
       )}
 
       {/* --- Default Presets --- */}
-      {defaultPresets.map((preset) => (
-        <PresetItem
-          key={preset.id}
-          name={preset.name}
-          icon={<FontAwesome5 name="file-upload" size={20} />}
-          onPress={() => onLoad(preset.id)}
-          isActive={activePresetId === preset.id}
-        />
-      ))}
+      {defaultPresets.map((preset) => {
+        // ONLY interactive in 'load' mode
+        const isInteractive = mode === "load";
+        // Action is *always* load
+        const tapAction = () => onLoadPress(preset);
+
+        return (
+          <PresetItem
+            key={preset.id}
+            preset={preset}
+            isActive={activePresetId === preset.id}
+            isInteractive={isInteractive}
+            onItemPress={tapAction}
+          />
+        );
+      })}
     </ScrollView>
   );
 };
 
-// --- Save View ---
+// --- Save View (No Change) ---
 type SaveViewProps = {
   presetName: string;
   setPresetName: (name: string) => void;
@@ -305,49 +400,10 @@ const SaveView: React.FC<SaveViewProps> = ({
           placeholderTextColor={colors.inactiveTint}
         />
         <Pressable style={styles.saveButton} onPress={onSave}>
-          <FontAwesome5
-            name="file-download"
-            size={20}
-            color={colors.background} // White text on primary button
-          />
+          <AntDesign name="file-add" size={20} color={colors.background} />
         </Pressable>
       </View>
     </View>
-  );
-};
-
-// --- Delete View ---
-type DeleteViewProps = {
-  presets: typeof DUMMY_CUSTOM_PRESETS;
-  onDelete: (id: string) => void;
-};
-const DeleteView: React.FC<DeleteViewProps> = ({ presets, onDelete }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => getModalStyles(colors), [colors]);
-
-  if (presets.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No custom presets to delete.</Text>
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView
-      style={styles.presetList}
-      contentContainerStyle={{ paddingBottom: 40 }}
-    >
-      {presets.map((preset) => (
-        <PresetItem
-          key={preset.id}
-          name={preset.name}
-          icon={<Ionicons name="trash-outline" size={22} />}
-          onPress={() => onDelete(preset.id)}
-          // No isActive prop passed
-        />
-      ))}
-    </ScrollView>
   );
 };
 
@@ -360,43 +416,41 @@ const getModalStyles = (colors: typeof lightColors) =>
       backgroundColor: colors.modalOverlay,
     },
     container: {
-      height: "85%", // Make modal taller
+      height: "85%",
       backgroundColor: colors.modalBackground,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      padding: 20, // Updated padding
+      padding: 20,
     },
-    // --- Header Styles (from AttenuationModel) ---
+    // --- Header Styles ---
     header: {
       flexDirection: "row",
-      justifyContent: "space-between", // This spaces [Icon] [Title] [Close]
+      justifyContent: "space-between",
       alignItems: "center",
       paddingBottom: 10,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
     headerIcon: {
-      // Sizing for the left icon
       padding: 4,
-      width: 32, // Balance the close button
+      width: 32,
     },
     title: {
-      flex: 1, // Allows title to take center space
-      textAlign: "center", // Centers the text
+      flex: 1,
+      textAlign: "center",
       fontSize: 20,
       fontWeight: "bold",
       color: colors.text,
     },
     closeButton: {
-      // Sizing for the right icon
       padding: 4,
-      width: 32, // Balance the header icon
+      width: 32,
     },
     // --- Tab Styles ---
     tabContainer: {
       flexDirection: "row",
       justifyContent: "space-around",
-      marginTop: 20, // Added margin
+      marginTop: 20,
       marginBottom: 20,
       backgroundColor: colors.card,
       borderRadius: 10,
@@ -404,31 +458,34 @@ const getModalStyles = (colors: typeof lightColors) =>
     },
     tabButton: {
       flex: 1,
+      flexDirection: "row", // To align icon and text
       paddingVertical: 10,
       paddingHorizontal: 20,
       borderRadius: 8,
       alignItems: "center",
+      justifyContent: "center", // Center icon and text
     },
     tabButtonActive: {
       backgroundColor: colors.primary,
     },
     tabButtonText: {
-      color: colors.text,
+      // color is set inline
       fontWeight: "600",
       fontSize: 16,
-    },
-    tabButtonTextActive: {
-      color: colors.background, // Use background for high contrast
+      marginLeft: 8, // Space between icon and text
     },
     contentContainer: {
       flex: 1,
       backgroundColor: colors.card,
       borderRadius: 12,
       padding: 10,
+      overflow: "hidden", // Ensures list scrolls within container
     },
     // --- Save View Styles ---
     saveContainer: {
       padding: 10,
+      borderBottomWidth: 1, // Separate Save UI from list
+      borderBottomColor: colors.border,
     },
     saveLabel: {
       color: colors.text,
@@ -459,18 +516,23 @@ const getModalStyles = (colors: typeof lightColors) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    // --- Load/Delete View Styles ---
+    // --- Preset List Styles ---
     presetList: {
-      flex: 1,
+      flex: 1, // Take remaining space
+    },
+    presetListSaveMode: {
+      flexGrow: 1, // Allow list to take space but not push save view
     },
     presetItem: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "center",
-      paddingVertical: 16,
-      paddingHorizontal: 10,
       borderBottomColor: colors.border,
       borderBottomWidth: 1,
+    },
+    presetNameButton: {
+      flex: 1,
+      paddingVertical: 16,
+      paddingHorizontal: 10,
     },
     presetName: {
       color: colors.text,
@@ -481,22 +543,15 @@ const getModalStyles = (colors: typeof lightColors) =>
       color: colors.primary,
       fontWeight: "700",
     },
-    iconButton: {
-      backgroundColor: colors.background,
-      padding: 10,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
     // --- List Separator ---
     listSeparator: {
       paddingVertical: 10,
-      marginTop: 5, // Small space
+      marginTop: 5,
       marginBottom: 5,
       borderTopWidth: 1,
       borderBottomWidth: 1,
       borderColor: colors.border,
-      backgroundColor: colors.background, // Slightly different bg
+      backgroundColor: colors.background,
     },
     listSeparatorText: {
       color: colors.textMuted,
@@ -504,15 +559,5 @@ const getModalStyles = (colors: typeof lightColors) =>
       fontWeight: "600",
       textAlign: "center",
       textTransform: "uppercase",
-    },
-    // --- Empty State ---
-    emptyContainer: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    emptyText: {
-      color: colors.textMuted,
-      fontSize: 16,
     },
   });
