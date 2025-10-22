@@ -1,5 +1,5 @@
 import { AttenuationModal } from "@/components/AttenuationModel";
-import { PresetModal } from "@/components/PresetModel"; // <-- 1. IMPORT PRESET MODAL
+import { PresetModal } from "@/components/PresetModal"; // <-- FIXED: Was "PresetModel"
 import { RemoteModal } from "@/components/RemoteModal";
 import {
   FontAwesome,

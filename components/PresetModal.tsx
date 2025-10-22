@@ -1,4 +1,4 @@
-import { AntDesign, FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
   Modal,
@@ -134,75 +134,78 @@ export const PresetModal: React.FC<PresetModalProps> = ({
 
   // --- RENDER ---
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {/* --- Header --- */}
-          <View style={styles.header}>
-            <Ionicons
-              name="save"
-              size={24}
-              color={colors.icon}
-              style={styles.headerIcon}
-            />
-            <Text style={styles.title}>Preset</Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={28} color={colors.icon} />
-            </Pressable>
-          </View>
-
-          {/* --- Tabs with Icons --- */}
-          <View style={styles.tabContainer}>
-            <TabButton
-              label="Load"
-              icon={<FontAwesome5 name="file-upload" size={18} />}
-              isActive={activeTab === "load"}
-              onPress={() => setActiveTab("load")}
-            />
-            <TabButton
-              label="Save"
-              icon={<FontAwesome5 name="file-download" size={18} />}
-              isActive={activeTab === "save"}
-              onPress={() => setActiveTab("save")}
-            />
-            <TabButton
-              label="Delete"
-              icon={<Ionicons name="trash-outline" size={20} />}
-              isActive={activeTab === "delete"}
-              onPress={() => setActiveTab("delete")}
-            />
-          </View>
-
-          {/* --- Content --- */}
-          <View style={styles.contentContainer}>
-            {/* Show Save UI only on Save tab */}
-            {activeTab === "save" && (
-              <SaveView
-                presetName={presetName}
-                setPresetName={setPresetName}
-                onSave={handleSavePress} // Triggers confirmation
+    // Wrap with React.Fragment
+    <>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={visible}
+        onRequestClose={onClose}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.container}>
+            {/* --- Header --- */}
+            <View style={styles.header}>
+              <Ionicons
+                name="save"
+                size={24}
+                color={colors.icon}
+                style={styles.headerIcon}
               />
-            )}
+              <Text style={styles.title}>Preset</Text>
+              <Pressable onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={28} color={colors.icon} />
+              </Pressable>
+            </View>
 
-            {/* Always show the unified list */}
-            <PresetListView
-              customPresets={customPresets}
-              defaultPresets={GTZAN_PRESETS}
-              onLoadPress={handleLoadPress} // Triggers confirmation
-              onDeletePress={handleDeletePress} // Triggers confirmation
-              activePresetId={activePresetId}
-              mode={activeTab} // Pass 'load', 'save', or 'delete'
-            />
+            {/* --- Tabs with Icons --- */}
+            <View style={styles.tabContainer}>
+              <TabButton
+                label="Load"
+                icon={<FontAwesome5 name="file-upload" size={18} />}
+                isActive={activeTab === "load"}
+                onPress={() => setActiveTab("load")}
+              />
+              <TabButton
+                label="Save"
+                icon={<FontAwesome5 name="file-download" size={18} />}
+                isActive={activeTab === "save"}
+                onPress={() => setActiveTab("save")}
+              />
+              <TabButton
+                label="Delete"
+                icon={<Ionicons name="trash-outline" size={20} />}
+                isActive={activeTab === "delete"}
+                onPress={() => setActiveTab("delete")}
+              />
+            </View>
+
+            {/* --- Content --- */}
+            <View style={styles.contentContainer}>
+              {/* Show Save UI only on Save tab */}
+              {activeTab === "save" && (
+                <SaveView
+                  presetName={presetName}
+                  setPresetName={setPresetName}
+                  onSave={handleSavePress} // Triggers confirmation
+                />
+              )}
+
+              {/* Always show the unified list */}
+              <PresetListView
+                customPresets={customPresets}
+                defaultPresets={GTZAN_PRESETS}
+                onLoadPress={handleLoadPress} // Triggers confirmation
+                onDeletePress={handleDeletePress} // Triggers confirmation
+                activePresetId={activePresetId}
+                mode={activeTab} // Pass 'load', 'save', or 'delete'
+              />
+            </View>
           </View>
         </View>
-      </View>
+      </Modal>
 
-      {/* --- Confirmation Dialogs (using ONE component) --- */}
+      {/* --- Confirmation Dialogs (MOVED OUTSIDE) --- */}
       <ConfirmationModal
         visible={showLoadConfirm}
         title="Load Preset?"
@@ -232,7 +235,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
         onCancel={cancelDelete}
         onConfirm={confirmDelete}
       />
-    </Modal>
+    </>
   );
 };
 
@@ -400,7 +403,11 @@ const SaveView: React.FC<SaveViewProps> = ({
           placeholderTextColor={colors.inactiveTint}
         />
         <Pressable style={styles.saveButton} onPress={onSave}>
-          <AntDesign name="file-add" size={20} color={colors.background} />
+          <FontAwesome5
+            name="file-download"
+            size={20}
+            color={colors.background}
+          />
         </Pressable>
       </View>
     </View>
