@@ -3,21 +3,30 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
 import { lightColors } from "../theme/colors"; // Import type
 
-type LoadConfirmationModalProps = {
+type ConfirmationModalProps = {
   visible: boolean;
-  presetName: string;
+  title: string;
+  message: string;
+  confirmButtonLabel: string;
+  confirmButtonColor?: string; // Optional: for the delete button
   onCancel: () => void;
   onConfirm: () => void;
 };
 
-export const LoadDialogueModal: React.FC<LoadConfirmationModalProps> = ({
+export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   visible,
-  presetName,
+  title,
+  message,
+  confirmButtonLabel,
+  confirmButtonColor,
   onCancel,
   onConfirm,
 }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => getModalStyles(colors), [colors]);
+
+  // Use the passed-in color, or default to the primary theme color
+  const finalConfirmColor = confirmButtonColor || colors.primary;
 
   return (
     <Modal
@@ -28,11 +37,8 @@ export const LoadDialogueModal: React.FC<LoadConfirmationModalProps> = ({
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>Load Preset?</Text>
-          <Text style={styles.message}>
-            Are you sure you want to load "{presetName}"? Any unsaved changes
-            will be lost.
-          </Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.message}>{message}</Text>
           <View style={styles.buttonRow}>
             <Pressable
               style={[styles.button, styles.cancelButton]}
@@ -41,10 +47,14 @@ export const LoadDialogueModal: React.FC<LoadConfirmationModalProps> = ({
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={[styles.button, styles.loadButton]}
+              style={[
+                styles.button,
+                styles.confirmButton,
+                { backgroundColor: finalConfirmColor },
+              ]}
               onPress={onConfirm}
             >
-              <Text style={styles.loadButtonText}>Load</Text>
+              <Text style={styles.confirmButtonText}>{confirmButtonLabel}</Text>
             </Pressable>
           </View>
         </View>
@@ -107,10 +117,10 @@ const getModalStyles = (colors: typeof lightColors) =>
       fontWeight: "600",
       fontSize: 16,
     },
-    loadButton: {
-      backgroundColor: colors.primary, // Use primary color
+    confirmButton: {
+      // backgroundColor is set inline
     },
-    loadButtonText: {
+    confirmButtonText: {
       color: "#FFFFFF",
       fontWeight: "600",
       fontSize: 16,

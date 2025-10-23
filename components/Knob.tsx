@@ -52,20 +52,28 @@ export const Knob: React.FC<KnobProps> = ({
   const lastAngle = useSharedValue(rotation.value);
 
   const panGesture = Gesture.Pan()
-    .onStart(() => {
-      lastAngle.value = rotation.value;
-    })
+    .maxPointers(1) // Prevents gesture conflicts and accidental dragging
     .onUpdate((event) => {
+      // 2. Calculate coordinates relative to the center
       const x = event.x - CENTER.x;
       const y = event.y - CENTER.y;
-      const angleRad = Math.atan2(y, x);
-      const angleDeg = (angleRad * 180) / Math.PI + 90;
-      const startAngleRad = Math.atan2(
-        event.translationY + y,
-        event.translationX + x
-      );
-      const startAngleDeg = (startAngleRad * 180) / Math.PI + 90;
-      rotation.value = lastAngle.value + (angleDeg - startAngleDeg);
+
+      // 3. Calculate the absolute angle of the touch
+      //    We use atan2(x, -y) which correctly maps:
+      //    - Screen coordinates (y increases down)
+      //    - To a clockwise rotation
+      //    - With 0 degrees at the top (12 o'clock)
+      const angleRad = Math.atan2(x, -y);
+
+      // 4. Convert radians to degrees (0-360)
+      //    (angleRad * 180 / Math.PI) gives a range of -180 to 180.
+      //    Adding 360 and using modulo (%) maps this to 0-360.
+      let angleDeg = ((angleRad * 180) / Math.PI + 360) % 360;
+
+      // 5. Update the shared value with the new absolute angle
+      rotation.value = angleDeg;
+
+      // 6. Call the onValueChange prop (this part is unchanged)
       if (onValueChange) {
         runOnJS(onValueChange)(getValueFromAngle(rotation.value));
       }
