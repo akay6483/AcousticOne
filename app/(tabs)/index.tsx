@@ -1,4 +1,5 @@
 import { AttenuationModal } from "@/components/AttenuationModel";
+import { ModeSelector } from "@/components/ModeSelector";
 import { PresetModal } from "@/components/PresetModal"; // <-- FIXED: Was "PresetModel"
 import { RemoteModal } from "@/components/RemoteModal";
 import {
@@ -123,6 +124,7 @@ const ControlScreen: React.FC = () => {
                   />
                 }
               />
+
               <ModalButton
                 label="Attenuation"
                 onPress={() => openModal("Attenuation")}
@@ -152,6 +154,11 @@ const ControlScreen: React.FC = () => {
               />
             </ScrollView>
 
+            {/* === ADD THE NEW COMPONENT HERE === */}
+            <ModeSelector />
+
+            {/* --- KNOBS SECTION --- */}
+            <View style={styles.knobsSection}>{/* ... (Knob rows) ... */}</View>
             {/* --- KNOBS SECTION --- */}
             <View style={styles.knobsSection}>
               <View style={styles.knobRow}>
@@ -214,6 +221,7 @@ const ControlScreen: React.FC = () => {
             visible={modalVisible === "Remote"}
             onClose={closeModal}
           />
+
           <AttenuationModal
             visible={modalVisible === "Attenuation"}
             onClose={closeModal}

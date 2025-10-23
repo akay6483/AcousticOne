@@ -1,5 +1,3 @@
-import { useTheme } from "@/theme/ThemeContext"; // 👈 Using your project's alias
-import { lightColors } from "@/theme/colors"; // 👈 Using your project's alias
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
@@ -13,6 +11,8 @@ import {
   Text,
   View,
 } from "react-native";
+import { useTheme } from "../theme/ThemeContext";
+import { lightColors } from "../theme/colors";
 
 // --- TYPE DEFINITIONS (from SRS/Class Diagram) ---
 export type PASystem = {
