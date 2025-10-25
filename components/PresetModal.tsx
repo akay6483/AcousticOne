@@ -1,4 +1,4 @@
-import { FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons"; // 👈 FontAwesome5 was not used, removed
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -190,13 +190,13 @@ export const PresetModal: React.FC<PresetModalProps> = ({
             <View style={styles.tabContainer}>
               <TabButton
                 label="Load"
-                icon={<FontAwesome5 name="file-upload" size={18} />}
+                icon={<MaterialIcons name="file-upload" size={20} />} // Use 20 for consistency
                 isActive={activeTab === "load"}
                 onPress={() => setActiveTab("load")}
               />
               <TabButton
                 label="Save"
-                icon={<FontAwesome5 name="file-download" size={18} />}
+                icon={<MaterialIcons name="file-download" size={20} />} // Use 20 for consistency
                 isActive={activeTab === "save"}
                 onPress={() => setActiveTab("save")}
               />
@@ -285,12 +285,17 @@ const TabButton: React.FC<TabButtonProps> = ({
   const { colors } = useTheme();
   const styles = useMemo(() => getModalStyles(colors), [colors]);
 
+  // Use icon/text color appropriate for the button's background
   const iconColor = isActive ? colors.background : colors.text;
   const textColor = isActive ? colors.background : colors.text;
 
   return (
     <TouchableOpacity
-      style={[styles.tabButton, isActive && styles.tabButtonActive]}
+      style={[
+        styles.tabButton,
+        // Apply active style OR default style
+        isActive ? styles.tabButtonActive : styles.tabButtonInactive,
+      ]}
       onPress={onPress}
     >
       {React.cloneElement(icon as React.ReactElement, {
@@ -354,8 +359,6 @@ const PresetListView: React.FC<PresetListViewProps> = ({
 
   return (
     <ScrollView
-      // --- *** FIXED: SCROLLING ISSUE *** ---
-      // Removed the conditional style `mode === "save" && styles.presetListSaveMode`
       style={styles.presetList}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
@@ -429,11 +432,7 @@ const SaveView: React.FC<SaveViewProps> = ({
           placeholderTextColor={colors.inactiveTint}
         />
         <Pressable style={styles.saveButton} onPress={onSave}>
-          <FontAwesome5
-            name="file-download"
-            size={20}
-            color={colors.background}
-          />
+          <MaterialIcons name="done" size={20} color={colors.background} />
         </Pressable>
       </View>
     </View>
@@ -449,7 +448,7 @@ const getModalStyles = (colors: typeof lightColors) =>
       backgroundColor: colors.modalOverlay,
     },
     container: {
-      height: "85%",
+      height: "80%",
       backgroundColor: colors.modalBackground,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
@@ -494,12 +493,15 @@ const getModalStyles = (colors: typeof lightColors) =>
       flexDirection: "row", // To align icon and text
       paddingVertical: 10,
       paddingHorizontal: 20,
-      borderRadius: 8,
       alignItems: "center",
       justifyContent: "center", // Center icon and text
     },
+    // --- *** FIXED: TAB STYLES *** ---
     tabButtonActive: {
       backgroundColor: colors.primary,
+    },
+    tabButtonInactive: {
+      backgroundColor: colors.background, // 👈 Give non-active tabs a distinct BG
     },
     tabButtonText: {
       // color is set inline
@@ -553,15 +555,12 @@ const getModalStyles = (colors: typeof lightColors) =>
     presetList: {
       flex: 1, // Take remaining space
     },
-    presetListSaveMode: {
-      // This style is no longer applied, but we leave it defined
-      flexGrow: 1,
-    },
+    // 'presetListSaveMode' is no longer used, so it's removed.
     presetItem: {
       flexDirection: "row",
       alignItems: "center",
       borderBottomColor: colors.border,
-      borderBottomWidth: 1,
+      borderBottomWidth: 1, // 👈 This is the line that separates items
     },
     presetNameButton: {
       flex: 1,
@@ -582,10 +581,7 @@ const getModalStyles = (colors: typeof lightColors) =>
       paddingVertical: 10,
       marginTop: 5,
       marginBottom: 5,
-      borderTopWidth: 1,
-      // borderBottomWidth: 1, // <-- REMOVED
       borderColor: colors.border,
-      // backgroundColor: colors.background, // <-- REMOVED
     },
     listSeparatorText: {
       color: colors.textMuted,
