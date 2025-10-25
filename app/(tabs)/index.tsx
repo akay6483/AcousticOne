@@ -1,6 +1,6 @@
 import { AttenuationModal } from "@/components/AttenuationModel";
 import { ModeSelector } from "@/components/ModeSelector";
-import { PresetModal } from "@/components/PresetModal"; // <-- FIXED: Was "PresetModel"
+import { PresetModal } from "@/components/PresetModal";
 import { RemoteModal } from "@/components/RemoteModal";
 import {
   FontAwesome,
@@ -23,13 +23,12 @@ import {
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Knob } from "../../components/Knob";
+// Import the *updated* Preset type
+import { Preset } from "../../services/database";
 
 // --- IMPORT THEME ---
 import { useTheme } from "../../theme/ThemeContext";
 import { lightColors } from "../../theme/colors"; // Import type
-
-// --- App Theme (REMOVED) ---
-// const theme = { ... };
 
 const { width } = Dimensions.get("window");
 
@@ -51,8 +50,8 @@ const SwitchControl: React.FC<SwitchControlProps> = ({
   value,
   onValueChange,
 }) => {
-  const { colors } = useTheme(); // SwitchControl gets its own theme
-  const styles = useMemo(() => getSwitchStyles(colors), [colors]); // Memoized styles
+  const { colors } = useTheme();
+  const styles = useMemo(() => getSwitchStyles(colors), [colors]);
 
   return (
     <View style={styles.switchContainer}>
@@ -68,8 +67,8 @@ const SwitchControl: React.FC<SwitchControlProps> = ({
 };
 
 const ModalButton: React.FC<ModalButtonProps> = ({ label, onPress, icon }) => {
-  const { colors } = useTheme(); // ModalButton gets its own theme
-  const styles = useMemo(() => getModalButtonStyles(colors), [colors]); // Memoized styles
+  const { colors } = useTheme();
+  const styles = useMemo(() => getModalButtonStyles(colors), [colors]);
 
   return (
     <Pressable style={styles.modalButton} onPress={onPress}>
@@ -81,8 +80,8 @@ const ModalButton: React.FC<ModalButtonProps> = ({ label, onPress, icon }) => {
 
 // --- Main Screen Component (Refactored) ---
 const ControlScreen: React.FC = () => {
-  const { colors, isDark } = useTheme(); // Get theme colors and dark mode status
-  const styles = useMemo(() => getScreenStyles(colors), [colors]); // Memoized styles
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => getScreenStyles(colors), [colors]);
 
   // --- State (No Change) ---
   const [volume, setVolume] = useState(75);
@@ -90,14 +89,71 @@ const ControlScreen: React.FC = () => {
   const [treble, setTreble] = useState(60);
   const [mid, setMid] = useState(19);
 
+  const [frontLeft, setFrontLeft] = useState(50);
+  const [frontRight, setFrontRight] = useState(50);
+  const [subwoofer, setSubwoofer] = useState(65);
+  const [center, setCenter] = useState(70);
+  const [rearLeft, setRearLeft] = useState(40);
+  const [rearRight, setRearRight] = useState(40);
+
   const [prologic, setPrologic] = useState(false);
   const [tone, setTone] = useState(true);
   const [surround, setSurround] = useState(false);
   const [mixed, setMixed] = useState(true);
+  const [mode, setMode] = useState("AUX2");
 
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const openModal = (name: string) => setModalVisible(name);
   const closeModal = () => setModalVisible(null);
+
+  // --- *** FIXED applyPreset function *** ---
+  // It now uses `preset.preset_values` instead of `preset.values`
+  const applyPreset = (preset: Preset) => {
+    if (preset.preset_values) {
+      setVolume(preset.preset_values.volume);
+      setBass(preset.preset_values.bass);
+      setTreble(preset.preset_values.treble);
+      setMid(preset.preset_values.mid);
+      setPrologic(preset.preset_values.prologic);
+      setTone(preset.preset_values.tone);
+      setSurround(preset.preset_values.surround);
+      setMixed(preset.preset_values.mixed);
+      setFrontLeft(preset.preset_values.frontLeft);
+      setFrontRight(preset.preset_values.frontRight);
+      setSubwoofer(preset.preset_values.subwoofer);
+      setCenter(preset.preset_values.center);
+      setRearLeft(preset.preset_values.rearLeft);
+      setRearRight(preset.preset_values.rearRight);
+      setMode(preset.preset_values.mode);
+    }
+  };
+
+  // Updated to match new onClose prop type
+  const handleClosePresetModal = (preset?: Preset) => {
+    if (preset) {
+      applyPreset(preset);
+    }
+    closeModal();
+  };
+
+  // --- This object matches the `Preset["preset_values"]` type ---
+  const currentSettings: Preset["preset_values"] = {
+    volume,
+    bass,
+    treble,
+    mid,
+    prologic,
+    tone,
+    surround,
+    mixed,
+    frontLeft,
+    frontRight,
+    subwoofer,
+    center,
+    rearLeft,
+    rearRight,
+    mode,
+  };
 
   const KNOB_SIZE = width * 0.4;
 
@@ -120,20 +176,15 @@ const ControlScreen: React.FC = () => {
                   <MaterialCommunityIcons
                     name="remote"
                     size={20}
-                    color={colors.icon} // Use theme color
+                    color={colors.icon}
                   />
                 }
               />
-
               <ModalButton
                 label="Attenuation"
                 onPress={() => openModal("Attenuation")}
                 icon={
-                  <MaterialIcons
-                    name="speaker"
-                    size={20}
-                    color={colors.icon} // Use theme color
-                  />
+                  <MaterialIcons name="speaker" size={20} color={colors.icon} />
                 }
               />
               <ModalButton
@@ -148,17 +199,14 @@ const ControlScreen: React.FC = () => {
                   <FontAwesome
                     name="microphone"
                     size={20}
-                    color={colors.icon} // Use theme color
+                    color={colors.icon}
                   />
                 }
               />
             </ScrollView>
 
-            {/* === ADD THE NEW COMPONENT HERE === */}
-            <ModeSelector />
+            <ModeSelector mode={mode} onModeChange={setMode} />
 
-            {/* --- KNOBS SECTION --- */}
-            <View style={styles.knobsSection}>{/* ... (Knob rows) ... */}</View>
             {/* --- KNOBS SECTION --- */}
             <View style={styles.knobsSection}>
               <View style={styles.knobRow}>
@@ -221,16 +269,27 @@ const ControlScreen: React.FC = () => {
             visible={modalVisible === "Remote"}
             onClose={closeModal}
           />
-
           <AttenuationModal
             visible={modalVisible === "Attenuation"}
             onClose={closeModal}
+            frontLeft={frontLeft}
+            setFrontLeft={setFrontLeft}
+            frontRight={frontRight}
+            setFrontRight={setFrontRight}
+            subwoofer={subwoofer}
+            setSubwoofer={setSubwoofer}
+            center={center}
+            setCenter={setCenter}
+            rearLeft={rearLeft}
+            setRearLeft={setRearLeft}
+            rearRight={rearRight}
+            setRearRight={setRearRight}
           />
           <PresetModal
             visible={modalVisible === "Presets"}
-            onClose={closeModal}
+            onClose={handleClosePresetModal}
+            currentSettings={currentSettings}
           />
-          {/* <-- 2. RENDER PRESET MODAL */}
         </SafeAreaView>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -239,11 +298,8 @@ const ControlScreen: React.FC = () => {
 
 export default ControlScreen;
 
-// --- Stylesheet (REMOVED from top level) ---
-
-// --- NEW DYNAMIC STYLE FUNCTIONS ---
-
-// Styles for the main screen
+// --- STYLES ---
+// (Styles are unchanged)
 const getScreenStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     safeArea: {
@@ -286,7 +342,6 @@ const getScreenStyles = (colors: typeof lightColors) =>
     },
   });
 
-// Styles for the ModalButton component
 const getModalButtonStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     modalButton: {
@@ -308,7 +363,6 @@ const getModalButtonStyles = (colors: typeof lightColors) =>
     },
   });
 
-// Styles for the SwitchControl component
 const getSwitchStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     switchContainer: {

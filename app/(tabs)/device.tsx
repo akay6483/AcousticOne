@@ -3,7 +3,7 @@ import {
   Ionicons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -14,23 +14,25 @@ import {
   Text,
   View,
 } from "react-native";
-import { useTheme } from "../../theme/ThemeContext"; // 👈 Corrected path
-import { lightColors } from "../../theme/colors"; // 👈 Corrected path
-// 👇 Import the modal and type from the new file
 import { PASystem, ScanAndPairModal } from "../../components/ScanAndPairModal";
-// (Adjust this path if you place the modal elsewhere)
+import { useTheme } from "../../theme/ThemeContext";
+import { lightColors } from "../../theme/colors";
 
-// --- MOCK DATA ---
-const MOCK_PAIRED_SYSTEMS: PASystem[] = [
-  { id: "1", name: "Living Room Speaker", ssid: "AcousticsOne-LR-5G" },
-  { id: "2", name: "Bedroom Amp", ssid: "AcousticsOne-BR-2.4G" },
-  { id: "3", name: "Garage PA", ssid: "AcousticsOne-GRG-5G" },
-  { id: "4", name: "Basement System", ssid: "AcousticsOne-BSMT-2.4G" },
-];
+// --- DATABASE IMPORTS ---
+import {
+  Device,
+  addDevice,
+  deleteDevice,
+  getDevices,
+  initDB,
+} from "../../services/database"; // 👈 Import from DB
 
 type ConnectionStatus = "connected" | "connecting" | "disconnected" | "error";
 
 // --- REUSABLE SUB-COMPONENTS ---
+// (SectionHeader, SystemStatusCard, PairedDeviceItem are unchanged,
+// but they will now receive the `Device` type instead of `PASystem`)
+// ...
 
 /**
  * Header component for a section (e.g., "Connection Status")
@@ -54,7 +56,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({ title, children }) => {
  * Card displaying the currently connected device and its status.
  */
 interface SystemStatusCardProps {
-  system: PASystem | null;
+  system: Device | null; // 👈 Use Device type
   status: ConnectionStatus;
 }
 const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
@@ -64,22 +66,11 @@ const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
-  const getStatusText = () => {
-    if (!system) return "Not Connected";
-    switch (status) {
-      case "connected":
-        return "Connected";
-      case "connecting":
-      default:
-        return "Disconnected";
-    }
-  };
-
   return (
     <View
       style={[
         styles.deviceCard,
-        styles.statusCard, // Specific style for the status card
+        styles.statusCard,
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
@@ -118,7 +109,7 @@ const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
  * Pressable list item for a paired device.
  */
 interface PairedDeviceItemProps {
-  item: PASystem;
+  item: Device; // 👈 Use Device type
   onConnect: () => void;
   onForget: () => void;
   isForgetMode: boolean;
@@ -159,8 +150,6 @@ const PairedDeviceItem: React.FC<PairedDeviceItemProps> = ({
           SSID: {item.ssid}
         </Text>
       </View>
-
-      {/* Conditional Connect/Forget Button */}
       {isForgetMode ? (
         <Pressable
           style={[styles.deviceButton, { backgroundColor: colors.error }]}
@@ -190,19 +179,42 @@ export default function DeviceScreen() {
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isForgetMode, setIsForgetMode] = useState(false); // New state for forget mode
-  const [pairedSystems, setPairedSystems] =
-    useState<PASystem[]>(MOCK_PAIRED_SYSTEMS);
+  const [isForgetMode, setIsForgetMode] = useState(false);
 
-  // --- Mock Connection State ---
-  const [connectedSystem, setConnectedSystem] = useState<PASystem | null>(
-    MOCK_PAIRED_SYSTEMS[0]
-  );
+  // --- States now use the `Device` type and load from DB ---
+  const [pairedSystems, setPairedSystems] = useState<Device[]>([]);
+  const [connectedSystem, setConnectedSystem] = useState<Device | null>(null);
   const [connectionStatus, setConnectionStatus] =
-    useState<ConnectionStatus>("connected");
+    useState<ConnectionStatus>("disconnected");
+
+  // --- Load devices from DB on mount ---
+  useEffect(() => {
+    loadDevices();
+  }, []);
+
+  /**
+   * Fetches devices from DB and updates state
+   */
+  const loadDevices = async () => {
+    try {
+      await initDB(); // Ensure DB is initialized
+      const devicesFromDB = await getDevices();
+      setPairedSystems(devicesFromDB);
+
+      // If nothing is connected, try to connect to the first device in the list
+      if (!connectedSystem && devicesFromDB.length > 0) {
+        handleConnect(devicesFromDB[0]);
+      } else if (devicesFromDB.length === 0) {
+        setConnectedSystem(null);
+        setConnectionStatus("disconnected");
+      }
+    } catch (error) {
+      console.error("Failed to load devices:", error);
+    }
+  };
 
   // --- Handlers ---
-  const handleConnect = (system: PASystem) => {
+  const handleConnect = (system: Device) => {
     console.log("Connecting to:", system.name);
     setConnectionStatus("connecting");
     // Simulate connection
@@ -212,7 +224,10 @@ export default function DeviceScreen() {
     }, 1000);
   };
 
-  const handleForget = (systemToForget: PASystem) => {
+  /**
+   * Deletes a device from the DB and reloads the list
+   */
+  const handleForget = (systemToForget: Device) => {
     Alert.alert(
       "Forget System",
       `Are you sure you want to forget ${systemToForget.name}?`,
@@ -221,28 +236,39 @@ export default function DeviceScreen() {
         {
           text: "Forget",
           style: "destructive",
-          onPress: () => {
-            if (connectedSystem?.id === systemToForget.id) {
-              setConnectedSystem(null);
-              setConnectionStatus("disconnected");
+          onPress: async () => {
+            try {
+              // Disconnect if it's the active device
+              if (connectedSystem?.id === systemToForget.id) {
+                setConnectedSystem(null);
+                setConnectionStatus("disconnected");
+              }
+              await deleteDevice(systemToForget.id);
+              await loadDevices(); // Refresh list from DB
+            } catch (error) {
+              console.error("Failed to forget device:", error);
             }
-            setPairedSystems(
-              pairedSystems.filter((s) => s.id !== systemToForget.id)
-            );
           },
         },
       ]
     );
   };
 
-  const handleAddNewSystem = (newSystem: PASystem) => {
-    setPairedSystems((currentSystems) => {
-      if (currentSystems.find((s) => s.id === newSystem.id)) {
-        return currentSystems;
-      }
-      return [...currentSystems, newSystem];
-    });
-    setIsModalVisible(false);
+  /**
+   * Adds a new device to the DB and reloads the list
+   * Note: The ScanModal passes a `PASystem` type, which is
+   * compatible with our `addDevice` function.
+   */
+  const handleAddNewSystem = async (newSystem: PASystem) => {
+    try {
+      await addDevice(newSystem); // Add to DB
+      await loadDevices(); // Refresh list from DB
+    } catch (error) {
+      console.error("Failed to add new system:", error);
+      Alert.alert("Error", "Failed to add new system. It may already exist.");
+    } finally {
+      setIsModalVisible(false);
+    }
   };
 
   return (
@@ -306,7 +332,7 @@ export default function DeviceScreen() {
 
           {/* --- SCROLLABLE LIST --- */}
           <FlatList
-            data={pairedSystems}
+            data={pairedSystems} // Now from DB state
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <PairedDeviceItem
@@ -335,7 +361,7 @@ export default function DeviceScreen() {
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onPairSuccess={handleAddNewSystem}
-        pairedSystemIds={pairedSystems.map((s) => s.id)}
+        pairedSystemIds={pairedSystems.map((s) => s.id)} // Now from DB state
       />
     </SafeAreaView>
   );
@@ -377,8 +403,8 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       marginLeft: 16,
     },
     deviceCard: {
-      flexDirection: "row", // Added
-      alignItems: "center", // Added
+      flexDirection: "row",
+      alignItems: "center",
       borderWidth: 1,
       borderRadius: 16,
       padding: 16,
