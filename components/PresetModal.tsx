@@ -268,10 +268,6 @@ export const PresetModal: React.FC<PresetModalProps> = ({
 };
 
 // --- SUB-COMPONENTS ---
-// (TabButton, PresetItem, PresetListView, SaveView)
-// These are identical to your "Old" file's subcomponents
-// and do not need to be changed.
-// ...
 
 // --- TabButton ---
 type TabButtonProps = {
@@ -358,7 +354,9 @@ const PresetListView: React.FC<PresetListViewProps> = ({
 
   return (
     <ScrollView
-      style={[styles.presetList, mode === "save" && styles.presetListSaveMode]}
+      // --- *** FIXED: SCROLLING ISSUE *** ---
+      // Removed the conditional style `mode === "save" && styles.presetListSaveMode`
+      style={styles.presetList}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
       {/* --- Custom Presets --- */}
@@ -443,7 +441,6 @@ const SaveView: React.FC<SaveViewProps> = ({
 };
 
 // --- STYLES ---
-// (Identical to your "Old" file)
 const getModalStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     overlay: {
@@ -520,7 +517,7 @@ const getModalStyles = (colors: typeof lightColors) =>
     // --- Save View Styles ---
     saveContainer: {
       padding: 10,
-      borderBottomWidth: 1, // Separate Save UI from list
+      borderBottomWidth: 1, // This line is correct per Figma
       borderBottomColor: colors.border,
     },
     saveLabel: {
@@ -557,7 +554,8 @@ const getModalStyles = (colors: typeof lightColors) =>
       flex: 1, // Take remaining space
     },
     presetListSaveMode: {
-      flexGrow: 1, // Allow list to take space but not push save view
+      // This style is no longer applied, but we leave it defined
+      flexGrow: 1,
     },
     presetItem: {
       flexDirection: "row",
@@ -579,15 +577,15 @@ const getModalStyles = (colors: typeof lightColors) =>
       color: colors.primary,
       fontWeight: "700",
     },
-    // --- List Separator ---
+    // --- *** FIXED: List Separator Style *** ---
     listSeparator: {
       paddingVertical: 10,
       marginTop: 5,
       marginBottom: 5,
       borderTopWidth: 1,
-      borderBottomWidth: 1,
+      // borderBottomWidth: 1, // <-- REMOVED
       borderColor: colors.border,
-      backgroundColor: colors.background,
+      // backgroundColor: colors.background, // <-- REMOVED
     },
     listSeparatorText: {
       color: colors.textMuted,

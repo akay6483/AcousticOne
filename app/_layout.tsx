@@ -6,6 +6,7 @@ import { ActivityIndicator, Image, View } from "react-native";
 import { initDB } from "../services/database"; //adjust import path to your db file
 import { ThemeProvider, useTheme } from "../theme/ThemeContext";
 
+//import { resetDB } from "../services/database";
 // LogoTitle using theme
 function LogoTitle() {
   const { isDark } = useTheme();

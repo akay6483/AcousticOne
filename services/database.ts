@@ -1,4 +1,3 @@
-// services/database.ts
 import * as FileSystem from "expo-file-system";
 import { openDatabaseAsync, SQLiteDatabase } from "expo-sqlite";
 
@@ -37,7 +36,7 @@ export type Preset = {
   };
 };
 
-/* --- Mock data (unchanged) --- */
+/* --- Mock data --- */
 const MOCK_PAIRED_SYSTEMS: Device[] = [
   { id: "1", name: "Living Room Speaker", ssid: "AcousticsOne-LR-5G" },
   { id: "2", name: "Bedroom Amp", ssid: "AcousticsOne-BR-2.4G" },
@@ -45,6 +44,7 @@ const MOCK_PAIRED_SYSTEMS: Device[] = [
   { id: "4", name: "Basement System", ssid: "AcousticsOne-BSMT-2.4G" },
 ];
 
+// --- *** FIXED: FULL GTZAN PRESET LIST *** ---
 const GTZAN_PRESETS: Omit<Preset, "id">[] = [
   {
     name: "Blues",
@@ -67,7 +67,195 @@ const GTZAN_PRESETS: Omit<Preset, "id">[] = [
       mode: "AUX1",
     },
   },
-  // ... rest of GTZAN presets
+  {
+    name: "Classical",
+    type: "gtzan",
+    preset_values: {
+      volume: 75,
+      bass: 55,
+      treble: 70,
+      mid: 65,
+      prologic: false,
+      tone: true,
+      surround: false,
+      mixed: true,
+      frontLeft: 50,
+      frontRight: 50,
+      subwoofer: 50,
+      center: 50,
+      rearLeft: 50,
+      rearRight: 50,
+      mode: "AUX1",
+    },
+  },
+  {
+    name: "Country",
+    type: "gtzan",
+    preset_values: {
+      volume: 75,
+      bass: 65,
+      treble: 60,
+      mid: 70,
+      prologic: false,
+      tone: true,
+      surround: false,
+      mixed: true,
+      frontLeft: 50,
+      frontRight: 50,
+      subwoofer: 50,
+      center: 50,
+      rearLeft: 50,
+      rearRight: 50,
+      mode: "AUX1",
+    },
+  },
+  {
+    name: "Disco",
+    type: "gtzan",
+    preset_values: {
+      volume: 75,
+      bass: 80,
+      treble: 75,
+      mid: 50,
+      prologic: false,
+      tone: true,
+      surround: false,
+      mixed: true,
+      frontLeft: 50,
+      frontRight: 50,
+      subwoofer: 50,
+      center: 50,
+      rearLeft: 50,
+      rearRight: 50,
+      mode: "AUX1",
+    },
+  },
+  {
+    name: "Hiphop",
+    type: "gtzan",
+    preset_values: {
+      volume: 75,
+      bass: 90,
+      treble: 65,
+      mid: 40,
+      prologic: false,
+      tone: true,
+      surround: false,
+      mixed: true,
+      frontLeft: 50,
+      frontRight: 50,
+      subwoofer: 50,
+      center: 50,
+      rearLeft: 50,
+      rearRight: 50,
+      mode: "AUX1",
+    },
+  },
+  {
+    name: "Jazz",
+    type: "gtzan",
+    preset_values: {
+      volume: 75,
+      bass: 60,
+      treble: 75,
+      mid: 65,
+      prologic: false,
+      tone: true,
+      surround: false,
+      mixed: true,
+      frontLeft: 50,
+      frontRight: 50,
+      subwoofer: 50,
+      center: 50,
+      rearLeft: 50,
+      rearRight: 50,
+      mode: "AUX1",
+    },
+  },
+  {
+    name: "Metal",
+    type: "gtzan",
+    preset_values: {
+      volume: 75,
+      bass: 75,
+      treble: 80,
+      mid: 20,
+      prologic: false,
+      tone: true,
+      surround: false,
+      mixed: true,
+      frontLeft: 50,
+      frontRight: 50,
+      subwoofer: 50,
+      center: 50,
+      rearLeft: 50,
+      rearRight: 50,
+      mode: "AUX1",
+    },
+  },
+  {
+    name: "Pop",
+    type: "gtzan",
+    preset_values: {
+      volume: 75,
+      bass: 75,
+      treble: 70,
+      mid: 60,
+      prologic: false,
+      tone: true,
+      surround: false,
+      mixed: true,
+      frontLeft: 50,
+      frontRight: 50,
+      subwoofer: 50,
+      center: 50,
+      rearLeft: 50,
+      rearRight: 50,
+      mode: "AUX1",
+    },
+  },
+  {
+    name: "Reggae",
+    type: "gtzan",
+    preset_values: {
+      volume: 75,
+      bass: 85,
+      treble: 60,
+      mid: 35,
+      prologic: false,
+      tone: true,
+      surround: false,
+      mixed: true,
+      frontLeft: 50,
+      frontRight: 50,
+      subwoofer: 50,
+      center: 50,
+      rearLeft: 50,
+      rearRight: 50,
+      mode: "AUX1",
+    },
+  },
+  {
+    name: "Rock",
+    type: "gtzan",
+    preset_values: {
+      volume: 75,
+      bass: 80,
+      treble: 75,
+      mid: 50,
+      prologic: false,
+      tone: true,
+      surround: false,
+      mixed: true,
+      frontLeft: 50,
+      frontRight: 50,
+      subwoofer: 50,
+      center: 50,
+      rearLeft: 50,
+      rearRight: 50,
+      mode: "AUX1",
+    },
+  },
 ];
 
 /* --- DB instance + init guard --- */
@@ -136,12 +324,14 @@ export const initDB = async (): Promise<void> => {
       );
       const count = presetCountRow?.count ?? 0;
       if (count === 0) {
+        console.log("Populating GTZAN presets..."); // Added log
         for (const p of GTZAN_PRESETS) {
           await database.runAsync(
             "INSERT INTO presets (name, type, preset_values) VALUES (?, ?, ?);",
             [p.name, p.type, JSON.stringify(p.preset_values)]
           );
         }
+        console.log("GTZAN presets populated."); // Added log
       }
     } catch (err) {
       console.warn("initDB: error inserting GTZAN presets", err);
@@ -190,6 +380,7 @@ export const getPresets = async (
     preset_values: string;
   }>(query, params);
 
+  // Parse the JSON string for each row
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
