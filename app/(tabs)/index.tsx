@@ -213,13 +213,13 @@ const ControlScreen: React.FC = () => {
                 <Knob
                   label="Volume"
                   size={KNOB_SIZE}
-                  initialValue={volume}
+                  value={volume}
                   onValueChange={setVolume}
                 />
                 <Knob
                   label="Treble"
                   size={KNOB_SIZE}
-                  initialValue={treble}
+                  value={treble}
                   onValueChange={setTreble}
                 />
               </View>
@@ -227,13 +227,13 @@ const ControlScreen: React.FC = () => {
                 <Knob
                   label="Mid"
                   size={KNOB_SIZE}
-                  initialValue={mid}
+                  value={mid}
                   onValueChange={setMid}
                 />
                 <Knob
                   label="Bass"
                   size={KNOB_SIZE}
-                  initialValue={bass}
+                  value={bass}
                   onValueChange={setBass}
                 />
               </View>

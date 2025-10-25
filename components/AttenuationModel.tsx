@@ -1,5 +1,5 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   Dimensions,
   Modal,
@@ -86,37 +86,37 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
               <Knob
                 label="Front Left"
                 size={KNOB_SIZE}
-                initialValue={frontLeft}
+                value={frontLeft}
                 onValueChange={setFrontLeft}
               />
               <Knob
                 label="Front Right"
                 size={KNOB_SIZE}
-                initialValue={frontRight}
+                value={frontRight}
                 onValueChange={setFrontRight}
               />
               <Knob
                 label="Subwoofer"
                 size={KNOB_SIZE}
-                initialValue={subwoofer}
+                value={subwoofer}
                 onValueChange={setSubwoofer}
               />
               <Knob
                 label="Center"
                 size={KNOB_SIZE}
-                initialValue={center}
+                value={center}
                 onValueChange={setCenter}
               />
               <Knob
                 label="Rear Left"
                 size={KNOB_SIZE}
-                initialValue={rearLeft}
+                value={rearLeft}
                 onValueChange={setRearLeft}
               />
               <Knob
                 label="Rear Right"
                 size={KNOB_SIZE}
-                initialValue={rearRight}
+                value={rearRight}
                 onValueChange={setRearRight}
               />
             </View>
