@@ -17,6 +17,18 @@ import { Knob } from "./Knob";
 interface AttenuationModalProps {
   visible: boolean;
   onClose: () => void;
+  frontLeft: number;
+  setFrontLeft: (value: number) => void;
+  frontRight: number;
+  setFrontRight: (value: number) => void;
+  subwoofer: number;
+  setSubwoofer: (value: number) => void;
+  center: number;
+  setCenter: (value: number) => void;
+  rearLeft: number;
+  setRearLeft: (value: number) => void;
+  rearRight: number;
+  setRearRight: (value: number) => void;
 }
 
 // --- Local theme REMOVED ---
@@ -27,17 +39,21 @@ const { width } = Dimensions.get("window");
 export const AttenuationModal: React.FC<AttenuationModalProps> = ({
   visible,
   onClose,
+  frontLeft,
+  setFrontLeft,
+  frontRight,
+  setFrontRight,
+  subwoofer,
+  setSubwoofer,
+  center,
+  setCenter,
+  rearLeft,
+  setRearLeft,
+  rearRight,
+  setRearRight,
 }) => {
   const { colors } = useTheme(); // Use global theme
   const styles = useMemo(() => getStyles(colors), [colors]); // Memoize styles
-
-  // --- State (no change) ---
-  const [frontLeft, setFrontLeft] = useState(50);
-  const [frontRight, setFrontRight] = useState(50);
-  const [subwoofer, setSubwoofer] = useState(65);
-  const [center, setCenter] = useState(70);
-  const [rearLeft, setRearLeft] = useState(40);
-  const [rearRight, setRearRight] = useState(40);
 
   const KNOB_SIZE = width * 0.38;
 

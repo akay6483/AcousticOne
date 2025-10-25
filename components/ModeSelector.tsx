@@ -70,18 +70,25 @@ const getStyles = (colors: typeof lightColors) =>
     }, //
   });
 
+// --- NEW PROPS ---
+interface ModeSelectorProps {
+  mode: string;
+  onModeChange: (mode: string) => void;
+}
+
 // --- Component ---
-export const ModeSelector: React.FC = () => {
+export const ModeSelector: React.FC<ModeSelectorProps> = ({
+  mode,
+  onModeChange,
+}) => {
   const { colors } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
-  // State to manage the currently selected mode
-  const [selectedMode, setSelectedMode] = useState("AUX2"); //
   // State to manage if the dropdown is open
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleModePress = (mode: string) => {
-    setSelectedMode(mode); //
+  const handleModePress = (newMode: string) => {
+    onModeChange(newMode);
     // You might want to close the dropdown on selection
     // setIsExpanded(false);
   };
@@ -105,13 +112,13 @@ export const ModeSelector: React.FC = () => {
       {isExpanded && (
         <View style={styles.content}>
           <View style={styles.modeSelectionContainer}>
-            {MODES.map((mode) => {
-              const isSelected = mode === selectedMode;
+            {MODES.map((modeOption) => {
+              const isSelected = modeOption === mode; // Use prop 'mode'
               return (
                 <Pressable
-                  key={mode}
+                  key={modeOption}
                   style={styles.modeOption}
-                  onPress={() => handleModePress(mode)}
+                  onPress={() => handleModePress(modeOption)} // Use handler
                 >
                   <View style={styles.starContainer}>
                     <Ionicons
@@ -127,7 +134,7 @@ export const ModeSelector: React.FC = () => {
                       { color: isSelected ? colors.primary : colors.text },
                     ]}
                   >
-                    {mode}
+                    {modeOption}
                   </Text>
                 </Pressable>
               );

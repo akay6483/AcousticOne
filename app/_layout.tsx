@@ -1,11 +1,12 @@
 import AntDesign from "@expo/vector-icons/AntDesign";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Drawer } from "expo-router/drawer";
-import React from "react";
-import { Image } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Image, View } from "react-native";
+import { initDB } from "../services/database"; //adjust import path to your db file
 import { ThemeProvider, useTheme } from "../theme/ThemeContext";
 
-// LogoTitle now uses the useTheme hook for consistency
+// LogoTitle using theme
 function LogoTitle() {
   const { isDark } = useTheme();
   return (
@@ -25,7 +26,6 @@ function LogoTitle() {
   );
 }
 
-// This is the new inner component that can access the theme
 function ThemedDrawer() {
   const { colors } = useTheme();
 
@@ -35,7 +35,6 @@ function ThemedDrawer() {
       screenOptions={{
         headerTitle: LogoTitle,
         headerTitleAlign: "left",
-        // Apply theme colors
         headerTintColor: colors.primary,
         headerStyle: { backgroundColor: colors.headerBackground },
         drawerStyle: { backgroundColor: colors.drawerBackground },
@@ -71,7 +70,6 @@ function ThemedDrawer() {
           ),
         }}
       />
-
       <Drawer.Screen
         name="(drawer)/info"
         options={{
@@ -85,8 +83,38 @@ function ThemedDrawer() {
   );
 }
 
-// The main export remains simple, providing the theme and rendering the themed drawer
+// --- Main RootLayout ---
 export default function RootLayout() {
+  const [dbReady, setDbReady] = useState(false);
+
+  useEffect(() => {
+    const setupDB = async () => {
+      try {
+        //await resetDB(); // 👈 reset your database if needed
+        await initDB(); // 👈 initialize your database before UI loads
+        setDbReady(true);
+      } catch (err) {
+        console.error("DB initialization failed:", err);
+      }
+    };
+    setupDB();
+  }, []);
+
+  if (!dbReady) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#121212",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <ActivityIndicator size="large" color="#3dbeff" />
+      </View>
+    );
+  }
+
   return (
     <ThemeProvider>
       <ThemedDrawer />

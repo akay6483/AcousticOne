@@ -1,6 +1,7 @@
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -11,40 +12,24 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "../theme/ThemeContext";
-import { lightColors } from "../theme/colors"; // Import type
+import { lightColors } from "../theme/colors";
 // Import the single new modal
 import { ConfirmationModal } from "./ConfirmationModal";
+// Import the NEW async database functions and types
+import {
+  Preset,
+  addPreset,
+  deletePreset,
+  getPresets,
+  initDB,
+} from "../services/database";
 
 // --- PROPS ---
 type PresetModalProps = {
   visible: boolean;
-  onClose: () => void;
+  onClose: (preset?: Preset) => void; // Updated to pass preset back on load
+  currentSettings: Preset["preset_values"]; // Use the prop from index.tsx
 };
-
-// --- PRESET DATA TYPES ---
-type Preset = {
-  id: string;
-  name: string;
-};
-
-// --- PRESET DATA ---
-const GTZAN_PRESETS: Preset[] = [
-  { id: "gtzan-1", name: "Blues" },
-  { id: "gtzan-2", name: "Classical" },
-  { id: "gtzan-3", name: "Country" },
-  { id: "gtzan-4", name: "Disco" },
-  { id: "gtzan-5", name: "Hiphop" },
-  { id: "gtzan-6", name: "Jazz" },
-  { id: "gtzan-7", name: "Metal" },
-  { id: "gtzan-8", name: "Pop" },
-  { id: "gtzan-9", name: "Reggae" },
-  { id: "gtzan-10", name: "Rock" },
-];
-
-const DUMMY_CUSTOM_PRESETS: Preset[] = [
-  { id: "c1", name: "My Custom 1" },
-  { id: "c2", name: "Bass Boosted" },
-];
 
 type ActiveTab = "load" | "save" | "delete";
 
@@ -52,6 +37,7 @@ type ActiveTab = "load" | "save" | "delete";
 export const PresetModal: React.FC<PresetModalProps> = ({
   visible,
   onClose,
+  currentSettings, // Use the prop
 }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => getModalStyles(colors), [colors]);
@@ -60,9 +46,10 @@ export const PresetModal: React.FC<PresetModalProps> = ({
   const [activeTab, setActiveTab] = useState<ActiveTab>("load");
   const [presetName, setPresetName] = useState("Custom 1");
 
-  // State for presets
-  const [customPresets, setCustomPresets] = useState(DUMMY_CUSTOM_PRESETS);
-  const [activePresetId, setActivePresetId] = useState<string | null>("c1");
+  // State for presets (now loaded from DB)
+  const [customPresets, setCustomPresets] = useState<Preset[]>([]);
+  const [gtzanPresets, setGtzanPresets] = useState<Preset[]>([]);
+  const [activePresetId, setActivePresetId] = useState<number | null>(null);
 
   // State for confirmation dialogs
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -73,7 +60,32 @@ export const PresetModal: React.FC<PresetModalProps> = ({
   const [showLoadConfirm, setShowLoadConfirm] = useState(false);
   const [presetToLoad, setPresetToLoad] = useState<Preset | null>(null);
 
-  // --- Handlers ---
+  // --- Load presets from DB when modal becomes visible ---
+  useEffect(() => {
+    const initialize = async () => {
+      if (visible) {
+        try {
+          await initDB(); // Ensure DB is ready
+          await loadPresets();
+        } catch (error) {
+          console.error("Failed to init and load presets:", error);
+        }
+      }
+    };
+    initialize();
+  }, [visible]);
+
+  // --- Async DB Handlers ---
+  const loadPresets = async () => {
+    try {
+      const custom = await getPresets("custom");
+      const gtzan = await getPresets("gtzan");
+      setCustomPresets(custom);
+      setGtzanPresets(gtzan);
+    } catch (error) {
+      console.error("Failed to load presets:", error);
+    }
+  };
 
   // LOAD
   const handleLoadPress = (preset: Preset) => {
@@ -82,10 +94,10 @@ export const PresetModal: React.FC<PresetModalProps> = ({
   };
   const confirmLoad = () => {
     if (!presetToLoad) return;
-    console.log("Loading preset:", presetToLoad.id);
-    setActivePresetId(presetToLoad.id);
-    // Add actual load logic here
+    console.log("Loading preset:", presetToLoad.name);
+    setActivePresetId(presetToLoad.id ?? null);
     cancelLoad();
+    onClose(presetToLoad); // Pass the selected preset back to index.tsx
   };
   const cancelLoad = () => {
     setShowLoadConfirm(false);
@@ -95,19 +107,28 @@ export const PresetModal: React.FC<PresetModalProps> = ({
   // SAVE
   const handleSavePress = () => {
     if (presetName.trim().length === 0) {
-      alert("Please enter a preset name.");
+      Alert.alert("Invalid Name", "Please enter a preset name.");
       return;
     }
     setShowSaveConfirm(true);
   };
-  const confirmSave = () => {
+  const confirmSave = async () => {
     console.log("Saving preset:", presetName);
-    const newPreset = { id: Date.now().toString(), name: presetName };
-    setCustomPresets([...customPresets, newPreset]);
-    setActivePresetId(newPreset.id);
-    setPresetName("Custom 1"); // Reset input
-    cancelSave();
-    setActiveTab("load"); // Switch to load tab after saving
+    const newPreset: Omit<Preset, "id"> = {
+      name: presetName.trim(),
+      type: "custom",
+      preset_values: currentSettings, // Save the settings from index.tsx
+    };
+    try {
+      const result = await addPreset(newPreset);
+      await loadPresets(); // Refresh list
+      setActivePresetId(result.insertId ?? null); // Select new preset
+      setPresetName("Custom 1"); // Reset input
+      cancelSave();
+      setActiveTab("load"); // Switch to load tab after saving
+    } catch (error) {
+      console.error("Failed to save preset:", error);
+    }
   };
   const cancelSave = () => {
     setShowSaveConfirm(false);
@@ -118,14 +139,19 @@ export const PresetModal: React.FC<PresetModalProps> = ({
     setPresetToDelete(preset);
     setShowDeleteConfirm(true);
   };
-  const confirmDelete = () => {
-    if (!presetToDelete) return;
-    console.log("Deleting preset:", presetToDelete.id);
-    setCustomPresets(customPresets.filter((p) => p.id !== presetToDelete.id));
-    if (activePresetId === presetToDelete.id) {
-      setActivePresetId(null);
+  const confirmDelete = async () => {
+    if (!presetToDelete?.id) return;
+    try {
+      console.log("Deleting preset:", presetToDelete.id);
+      await deletePreset(presetToDelete.id);
+      if (activePresetId === presetToDelete.id) {
+        setActivePresetId(null);
+      }
+      await loadPresets(); // Refresh list
+      cancelDelete();
+    } catch (error) {
+      console.error("Failed to delete preset:", error);
     }
-    cancelDelete();
   };
   const cancelDelete = () => {
     setShowDeleteConfirm(false);
@@ -134,13 +160,12 @@ export const PresetModal: React.FC<PresetModalProps> = ({
 
   // --- RENDER ---
   return (
-    // Wrap with React.Fragment
     <>
       <Modal
         animationType="slide"
         transparent={true}
         visible={visible}
-        onRequestClose={onClose}
+        onRequestClose={() => onClose()} // Call with no preset on simple close
       >
         <View style={styles.overlay}>
           <View style={styles.container}>
@@ -153,7 +178,10 @@ export const PresetModal: React.FC<PresetModalProps> = ({
                 style={styles.headerIcon}
               />
               <Text style={styles.title}>Preset</Text>
-              <Pressable onPress={onClose} style={styles.closeButton}>
+              <Pressable
+                onPress={() => onClose()} // Call with no preset
+                style={styles.closeButton}
+              >
                 <Ionicons name="close" size={28} color={colors.icon} />
               </Pressable>
             </View>
@@ -193,8 +221,8 @@ export const PresetModal: React.FC<PresetModalProps> = ({
 
               {/* Always show the unified list */}
               <PresetListView
-                customPresets={customPresets}
-                defaultPresets={GTZAN_PRESETS}
+                customPresets={customPresets} // From DB
+                defaultPresets={gtzanPresets} // From DB
                 onLoadPress={handleLoadPress} // Triggers confirmation
                 onDeletePress={handleDeletePress} // Triggers confirmation
                 activePresetId={activePresetId}
@@ -240,8 +268,12 @@ export const PresetModal: React.FC<PresetModalProps> = ({
 };
 
 // --- SUB-COMPONENTS ---
+// (TabButton, PresetItem, PresetListView, SaveView)
+// These are identical to your "Old" file's subcomponents
+// and do not need to be changed.
+// ...
 
-// --- TabButton (No Change) ---
+// --- TabButton ---
 type TabButtonProps = {
   label: string;
   icon: React.ReactNode;
@@ -273,7 +305,7 @@ const TabButton: React.FC<TabButtonProps> = ({
   );
 };
 
-// --- Preset List Item (No Change) ---
+// --- Preset List Item ---
 type PresetItemProps = {
   preset: Preset;
   isActive: boolean;
@@ -304,13 +336,13 @@ const PresetItem: React.FC<PresetItemProps> = ({
   );
 };
 
-// --- Preset List View (No Change) ---
+// --- Preset List View ---
 type PresetListViewProps = {
   customPresets: Preset[];
   defaultPresets: Preset[];
   onLoadPress: (preset: Preset) => void;
   onDeletePress: (preset: Preset) => void;
-  activePresetId: string | null;
+  activePresetId: number | null; // Changed to number
   mode: ActiveTab;
 };
 const PresetListView: React.FC<PresetListViewProps> = ({
@@ -331,9 +363,7 @@ const PresetListView: React.FC<PresetListViewProps> = ({
     >
       {/* --- Custom Presets --- */}
       {customPresets.map((preset) => {
-        // Interactive if in 'load' mode OR 'delete' mode
         const isInteractive = mode === "load" || mode === "delete";
-        // Action changes based on the mode
         const tapAction =
           mode === "load"
             ? () => onLoadPress(preset)
@@ -359,9 +389,7 @@ const PresetListView: React.FC<PresetListViewProps> = ({
 
       {/* --- Default Presets --- */}
       {defaultPresets.map((preset) => {
-        // ONLY interactive in 'load' mode
         const isInteractive = mode === "load";
-        // Action is *always* load
         const tapAction = () => onLoadPress(preset);
 
         return (
@@ -378,7 +406,7 @@ const PresetListView: React.FC<PresetListViewProps> = ({
   );
 };
 
-// --- Save View (No Change) ---
+// --- Save View ---
 type SaveViewProps = {
   presetName: string;
   setPresetName: (name: string) => void;
@@ -415,6 +443,7 @@ const SaveView: React.FC<SaveViewProps> = ({
 };
 
 // --- STYLES ---
+// (Identical to your "Old" file)
 const getModalStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     overlay: {
