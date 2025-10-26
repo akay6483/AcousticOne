@@ -1,8 +1,4 @@
-import {
-  AntDesign,
-  Ionicons,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -25,153 +21,11 @@ import {
   deleteDevice,
   getDevices,
   initDB,
-} from "../../services/database"; // 👈 Import from DB
+} from "../../services/database";
 
 type ConnectionStatus = "connected" | "connecting" | "disconnected" | "error";
 
-// --- REUSABLE SUB-COMPONENTS ---
-// (SectionHeader, SystemStatusCard, PairedDeviceItem are unchanged,
-// but they will now receive the `Device` type instead of `PASystem`)
-// ...
-
-/**
- * Header component for a section (e.g., "Connection Status")
- */
-interface SectionHeaderProps {
-  title: string;
-  children?: React.ReactNode; // For icons/buttons
-}
-const SectionHeader: React.FC<SectionHeaderProps> = ({ title, children }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => getStyles(colors, false), [colors]); // isDark doesn't matter here
-  return (
-    <View style={styles.sectionHeader}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
-      <View style={styles.sectionIcons}>{children}</View>
-    </View>
-  );
-};
-
-/**
- * Card displaying the currently connected device and its status.
- */
-interface SystemStatusCardProps {
-  system: Device | null; // 👈 Use Device type
-  status: ConnectionStatus;
-}
-const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
-  system,
-  status,
-}) => {
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
-
-  return (
-    <View
-      style={[
-        styles.deviceCard,
-        styles.statusCard,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          shadowColor: isDark ? "#000" : "#C5C6C9",
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.deviceIconContainer,
-          {
-            backgroundColor: system ? colors.primary : colors.background,
-            borderColor: system ? colors.primary : colors.border,
-          },
-        ]}
-      >
-        <MaterialCommunityIcons
-          name="speaker"
-          size={28}
-          color={system ? colors.card : colors.icon}
-        />
-      </View>
-      <View style={styles.deviceInfo}>
-        <Text style={[styles.deviceName, { color: colors.text }]}>
-          Name: {system?.name ?? "N/A"}
-        </Text>
-        <Text style={[styles.deviceSsid, { color: colors.textMuted }]}>
-          SSID: {system?.ssid ?? "N/A"}
-        </Text>
-      </View>
-    </View>
-  );
-};
-
-/**
- * Pressable list item for a paired device.
- */
-interface PairedDeviceItemProps {
-  item: Device; // 👈 Use Device type
-  onConnect: () => void;
-  onForget: () => void;
-  isForgetMode: boolean;
-}
-const PairedDeviceItem: React.FC<PairedDeviceItemProps> = ({
-  item,
-  onConnect,
-  onForget,
-  isForgetMode,
-}) => {
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
-
-  return (
-    <View
-      style={[
-        styles.deviceCard,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          shadowColor: isDark ? "#000" : "#C5C6C9",
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.deviceIconContainer,
-          { backgroundColor: colors.background, borderColor: colors.border },
-        ]}
-      >
-        <MaterialCommunityIcons name="speaker" size={28} color={colors.icon} />
-      </View>
-      <View style={styles.deviceInfo}>
-        <Text style={[styles.deviceName, { color: colors.text }]}>
-          Device name: {item.name}
-        </Text>
-        <Text style={[styles.deviceSsid, { color: colors.textMuted }]}>
-          SSID: {item.ssid}
-        </Text>
-      </View>
-      {isForgetMode ? (
-        <Pressable
-          style={[styles.deviceButton, { backgroundColor: colors.error }]}
-          onPress={onForget}
-        >
-          <Text style={[styles.buttonText, { color: colors.remotePowerText }]}>
-            Forget
-          </Text>
-        </Pressable>
-      ) : (
-        <Pressable
-          style={[styles.deviceButton, { backgroundColor: colors.primary }]}
-          onPress={onConnect}
-        >
-          <Text style={[styles.buttonText, { color: colors.remotePowerText }]}>
-            Connect
-          </Text>
-        </Pressable>
-      )}
-    </View>
-  );
-};
+// --- ManagerButton component REMOVED ---
 
 // --- MAIN SCREEN COMPONENT ---
 export default function DeviceScreen() {
@@ -179,13 +33,21 @@ export default function DeviceScreen() {
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isForgetMode, setIsForgetMode] = useState(false);
 
-  // --- States now use the `Device` type and load from DB ---
+  // --- States for device management ---
   const [pairedSystems, setPairedSystems] = useState<Device[]>([]);
   const [connectedSystem, setConnectedSystem] = useState<Device | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
+
+  // --- State for the selected device in the list ---
+  const [selectedSystemId, setSelectedSystemId] = useState<number | null>(null);
+
+  // --- Derived state to get the full selected system object ---
+  const selectedSystem = useMemo(
+    () => pairedSystems.find((s) => s.id === selectedSystemId),
+    [pairedSystems, selectedSystemId]
+  );
 
   // --- Load devices from DB on mount ---
   useEffect(() => {
@@ -201,12 +63,11 @@ export default function DeviceScreen() {
       const devicesFromDB = await getDevices();
       setPairedSystems(devicesFromDB);
 
-      // If nothing is connected, try to connect to the first device in the list
-      if (!connectedSystem && devicesFromDB.length > 0) {
-        handleConnect(devicesFromDB[0]);
-      } else if (devicesFromDB.length === 0) {
+      // If no devices, clear selection and connection
+      if (devicesFromDB.length === 0) {
         setConnectedSystem(null);
         setConnectionStatus("disconnected");
+        setSelectedSystemId(null);
       }
     } catch (error) {
       console.error("Failed to load devices:", error);
@@ -221,6 +82,7 @@ export default function DeviceScreen() {
     setTimeout(() => {
       setConnectedSystem(system);
       setConnectionStatus("connected");
+      console.log("Connected");
     }, 1000);
   };
 
@@ -243,6 +105,10 @@ export default function DeviceScreen() {
                 setConnectedSystem(null);
                 setConnectionStatus("disconnected");
               }
+              // Clear selection if it's the selected device
+              if (selectedSystemId === systemToForget.id) {
+                setSelectedSystemId(null);
+              }
               await deleteDevice(systemToForget.id);
               await loadDevices(); // Refresh list from DB
             } catch (error) {
@@ -256,8 +122,6 @@ export default function DeviceScreen() {
 
   /**
    * Adds a new device to the DB and reloads the list
-   * Note: The ScanModal passes a `PASystem` type, which is
-   * compatible with our `addDevice` function.
    */
   const handleAddNewSystem = async (newSystem: PASystem) => {
     try {
@@ -271,84 +135,272 @@ export default function DeviceScreen() {
     }
   };
 
+  // --- Button Press Handlers ---
+  const onConnectPress = () => {
+    if (selectedSystem) {
+      handleConnect(selectedSystem);
+    }
+  };
+
+  const onForgetPress = () => {
+    if (selectedSystem) {
+      handleForget(selectedSystem);
+    }
+  };
+
+  const onInfoPress = () => {
+    if (selectedSystem) {
+      Alert.alert(
+        "Device Info",
+        `Name: ${selectedSystem.name}\nSSID: ${selectedSystem.ssid}`
+      );
+    }
+  };
+
+  const onRenamePress = () => {
+    if (selectedSystem) {
+      Alert.alert("Rename", "Rename functionality is not yet implemented.");
+    }
+  };
+
+  // --- RENDER SUB-COMPONENTS ---
+
+  const renderStatusSection = () => {
+    if (connectionStatus === "connected" && connectedSystem) {
+      // --- CONNECTED STATE ---
+      return (
+        <View style={styles.statusContent}>
+          <View style={styles.statusImagePlaceholder}>
+            <Text style={{ color: colors.textMuted }}>Product Image</Text>
+          </View>
+          <View style={styles.statusInfoContainer}>
+            <View style={styles.statusInfoRow}>
+              <Text style={styles.statusLabel}>Strength :</Text>
+              <MaterialCommunityIcons
+                name="wifi-strength-4"
+                size={20}
+                color={colors.primary}
+              />
+            </View>
+            <View style={styles.statusInfoRow}>
+              <Text style={styles.statusLabel}>Model :</Text>
+              <Text style={styles.statusValue}>AcousticsOne-Amp</Text>
+            </View>
+            <View style={styles.statusInfoRow}>
+              <Text style={styles.statusLabel}>SSID :</Text>
+              <Text style={styles.statusValue}>{connectedSystem.ssid}</Text>
+            </View>
+            <View style={styles.statusInfoRow}>
+              <Text style={styles.statusLabel}>Other Info :</Text>
+              <Text style={styles.statusValue}>...</Text>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    // --- DISCONNECTED STATE ---
+    return (
+      <View style={styles.statusContent}>
+        <Text style={styles.statusEmptyText}>
+          No device connected. Tap{" "}
+          <Text
+            style={styles.addTextLink}
+            onPress={() => setIsModalVisible(true)}
+          >
+            add(+)
+          </Text>{" "}
+          to scan for devices.
+        </Text>
+      </View>
+    );
+  };
+
+  const renderDeviceListItem = ({ item }: { item: Device }) => {
+    const isSelected = item.id === selectedSystemId;
+    return (
+      <Pressable
+        style={[
+          styles.deviceListItem,
+          isSelected && styles.deviceListItemSelected,
+        ]}
+        onPress={() => setSelectedSystemId(item.id)}
+      >
+        <View style={styles.deviceListInfo}>
+          <Text
+            style={[styles.deviceName, isSelected && styles.deviceNameSelected]}
+          >
+            {item.name}
+          </Text>
+          <Text style={styles.deviceSsid}>{item.ssid}</Text>
+        </View>
+        {isSelected && (
+          <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+        )}
+      </Pressable>
+    );
+  };
+
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: colors.background }]}
-    >
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor={colors.background}
       />
 
-      {/* --- Main content wrapper --- */}
       <View style={styles.container}>
-        {/* --- 1. CONNECTION STATUS --- */}
-        <View style={styles.section}>
-          <SectionHeader title="Connection Status">
-            <Pressable onPress={() => Alert.alert("Connection Status Info")}>
-              <Ionicons
-                name="information-circle-outline"
-                size={26}
-                color={colors.icon}
-              />
-            </Pressable>
-          </SectionHeader>
-          <SystemStatusCard
-            system={connectedSystem}
-            status={connectionStatus}
-          />
+        {/* --- 1. STATUS SECTION --- */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Status</Text>
+            <MaterialCommunityIcons name="wifi" size={24} color={colors.icon} />
+          </View>
+          {renderStatusSection()}
         </View>
 
-        {/* --- 2. CONNECTION MANAGER --- */}
-        <View style={[styles.section, styles.managerSection]}>
-          <SectionHeader title="Connection Manager">
-            <View style={styles.sectionIcons}>
-              <Pressable onPress={() => Alert.alert("Device Manager Info")}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={26}
-                  color={colors.icon}
-                  style={styles.headerIcon}
-                />
-              </Pressable>
-              <Pressable onPress={() => setIsModalVisible(true)}>
-                <AntDesign
-                  name="plus"
-                  size={26}
-                  color={colors.icon}
-                  style={styles.headerIcon}
-                />
-              </Pressable>
-              <Pressable onPress={() => setIsForgetMode(!isForgetMode)}>
-                <AntDesign
-                  name="minus"
-                  size={26}
-                  color={isForgetMode ? colors.error : colors.icon}
-                  style={styles.headerIcon}
-                />
-              </Pressable>
-            </View>
-          </SectionHeader>
+        {/* --- 2. CONNECTOR SECTION --- */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Connector</Text>
+            <MaterialCommunityIcons
+              name="swap-horizontal"
+              size={24}
+              color={colors.icon}
+            />
+          </View>
+          <View style={styles.buttonRow}>
+            <Pressable
+              style={styles.connectorButton}
+              onPress={() => setIsModalVisible(true)} // Open modal
+            >
+              <Text style={styles.connectorButtonText}>Direct Connect</Text>
+            </Pressable>
+            <Pressable
+              style={styles.connectorButton}
+              onPress={() => setIsModalVisible(true)} // Open modal
+            >
+              <Text style={styles.connectorButtonText}>Network Connect</Text>
+            </Pressable>
+          </View>
+        </View>
 
-          {/* --- SCROLLABLE LIST --- */}
-          <FlatList
-            data={pairedSystems} // Now from DB state
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <PairedDeviceItem
-                item={item}
-                onConnect={() => handleConnect(item)}
-                onForget={() => handleForget(item)}
-                isForgetMode={isForgetMode}
+        {/* --- 3. MANAGER SECTION --- */}
+        <View style={[styles.sectionContainer, styles.managerSection]}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Manager</Text>
+            <MaterialCommunityIcons
+              name="devices"
+              size={24}
+              color={colors.icon}
+            />
+          </View>
+
+          {/* --- Horizontally Scrolling Buttons REMOVED --- */}
+          {/* --- New Button Container (like PresetModal) --- */}
+          <View style={styles.managerButtonContainer}>
+            <Pressable
+              style={[
+                styles.managerButton,
+                !selectedSystem && styles.managerButtonDisabled,
+              ]}
+              disabled={!selectedSystem}
+              onPress={onConnectPress}
+            >
+              <Ionicons
+                name="sync"
+                size={16}
+                color={!selectedSystem ? colors.textMuted : colors.text}
               />
-            )}
+              <Text
+                style={[
+                  styles.managerButtonText,
+                  !selectedSystem && styles.managerButtonTextDisabled,
+                ]}
+              >
+                Connect
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.managerButton,
+                !selectedSystem && styles.managerButtonDisabled,
+              ]}
+              disabled={!selectedSystem}
+              onPress={onInfoPress}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={16}
+                color={!selectedSystem ? colors.textMuted : colors.text}
+              />
+              <Text
+                style={[
+                  styles.managerButtonText,
+                  !selectedSystem && styles.managerButtonTextDisabled,
+                ]}
+              >
+                Info
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.managerButton,
+                !selectedSystem && styles.managerButtonDisabled,
+              ]}
+              disabled={!selectedSystem}
+              onPress={onRenamePress}
+            >
+              <MaterialCommunityIcons
+                name="pencil-outline"
+                size={16}
+                color={!selectedSystem ? colors.textMuted : colors.text}
+              />
+              <Text
+                style={[
+                  styles.managerButtonText,
+                  !selectedSystem && styles.managerButtonTextDisabled,
+                ]}
+              >
+                Rename
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.managerButton,
+                !selectedSystem && styles.managerButtonDisabled,
+              ]}
+              disabled={!selectedSystem}
+              onPress={onForgetPress}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={16}
+                color={!selectedSystem ? colors.textMuted : colors.text}
+              />
+              <Text
+                style={[
+                  styles.managerButtonText,
+                  !selectedSystem && styles.managerButtonTextDisabled,
+                ]}
+              >
+                Forget
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* --- Device List (will now scroll correctly) --- */}
+          <FlatList
+            data={pairedSystems}
+            renderItem={renderDeviceListItem}
+            keyExtractor={(item) => item.id.toString()}
             ListEmptyComponent={
               <View style={styles.emptyListContainer}>
-                <Text style={{ color: colors.textMuted }}>
-                  No paired devices.
-                </Text>
-                <Text style={{ color: colors.textMuted, marginTop: 4 }}>
-                  Press '+' to add one.
+                <Text style={styles.emptyListText}>No paired devices.</Text>
+                <Text style={styles.emptyListText}>
+                  Tap 'Direct Connect' or 'Network Connect' to add one.
                 </Text>
               </View>
             }
@@ -361,99 +413,198 @@ export default function DeviceScreen() {
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         onPairSuccess={handleAddNewSystem}
-        pairedSystemIds={pairedSystems.map((s) => s.id)} // Now from DB state
+        pairedSystemIds={pairedSystems.map((s) => s.id)}
       />
     </SafeAreaView>
   );
 }
 
 // --- STYLESHEET ---
+
+// --- getManagerButtonStyles function REMOVED ---
+
+// Main component styles
 const getStyles = (colors: typeof lightColors, isDark: boolean) =>
   StyleSheet.create({
     safeArea: {
       flex: 1,
+      backgroundColor: colors.background,
     },
     container: {
       flex: 1,
       padding: 16,
     },
-    section: {
+    sectionContainer: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 16,
       marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     managerSection: {
-      flex: 1, // This makes the section take up remaining space
-      minHeight: 0, // Important for FlatList to scroll
+      flex: 1,
+      minHeight: 0,
     },
     sectionHeader: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingVertical: 8,
-      marginBottom: 8,
+      paddingBottom: 12,
+      marginBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
     },
     sectionTitle: {
-      fontSize: 20,
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    // --- Status Section Styles ---
+    statusContent: {
+      flexDirection: "row",
+      paddingVertical: 8,
+      minHeight: 100,
+      alignItems: "center",
+    },
+    statusEmptyText: {
+      fontSize: 16,
+      color: colors.textMuted,
+      lineHeight: 24,
+    },
+    addTextLink: {
+      color: colors.primary,
       fontWeight: "600",
     },
-    sectionIcons: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    headerIcon: {
-      marginLeft: 16,
-    },
-    deviceCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      borderWidth: 1,
-      borderRadius: 16,
-      padding: 16,
-      marginBottom: 16,
-      shadowOpacity: 0.15,
-      shadowOffset: { width: 0, height: 2 },
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    statusCard: {
-      // Styles specific to the top status card, if any
-    },
-    deviceIconContainer: {
-      width: 50,
-      height: 50,
+    statusImagePlaceholder: {
+      width: 80,
+      height: 80,
       borderRadius: 8,
-      justifyContent: "center",
+      backgroundColor: colors.background,
       alignItems: "center",
-      marginRight: 12,
+      justifyContent: "center",
+      marginRight: 16,
       borderWidth: 1,
+      borderColor: colors.border,
     },
-    deviceInfo: {
-      flex: 1, // Takes up available space
+    statusInfoContainer: {
+      flex: 1,
+      justifyContent: "space-around",
+    },
+    statusInfoRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 2,
+    },
+    statusLabel: {
+      fontSize: 15,
+      color: colors.textMuted,
+      fontWeight: "500",
+    },
+    statusValue: {
+      fontSize: 15,
+      color: colors.text,
+      fontWeight: "600",
+    },
+    // --- Connector Button Styles ---
+    buttonRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 8,
+      marginBottom: 16,
+    },
+    connectorButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    connectorButtonText: {
+      color: colors.text,
+      fontWeight: "600",
+      fontSize: 13,
+      textAlign: "center",
+    },
+    // --- Manager Button Styles (modeled after PresetModal tabs) ---
+    managerButtonContainer: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      backgroundColor: colors.card, // Container is card color
+      borderRadius: 10,
+      padding: 4,
+      marginBottom: 16,
+      gap: 4, // Space between buttons
+    },
+    managerButton: {
+      flex: 1, // Each button takes equal space
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background, // Inactive tab color
+      paddingVertical: 10,
+      paddingHorizontal: 8, // Adjust padding to fit 4
+      borderRadius: 8, // Rounded corners for the button
+    },
+    managerButtonText: {
+      color: colors.text,
+      fontWeight: "600",
+      fontSize: 13, // Smaller font to fit
+      marginLeft: 6, // Space from icon
+    },
+    managerButtonDisabled: {
+      backgroundColor: colors.inactiveTint,
+      opacity: 0.7,
+    },
+    managerButtonTextDisabled: {
+      color: colors.textMuted,
+    },
+    // --- buttonsScrollView style REMOVED ---
+    // --- Device List Styles ---
+    deviceListItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 16,
+      borderRadius: 8,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: "transparent",
+    },
+    deviceListItemSelected: {
+      backgroundColor: colors.background,
+      borderColor: colors.primary,
+    },
+    deviceListInfo: {
+      flex: 1,
       gap: 4,
     },
     deviceName: {
       fontSize: 16,
       fontWeight: "500",
+      color: colors.text,
+    },
+    deviceNameSelected: {
+      color: colors.primary,
+      fontWeight: "600",
     },
     deviceSsid: {
       fontSize: 14,
-    },
-    deviceButton: {
-      borderRadius: 10,
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-    },
-    buttonText: {
-      fontWeight: "600",
-      fontSize: 14,
+      color: colors.textMuted,
     },
     emptyListContainer: {
       padding: 20,
       alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.card,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginTop: 8,
+    },
+    emptyListText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      textAlign: "center",
     },
   });
