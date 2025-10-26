@@ -15,10 +15,7 @@
       "package": "com.acousticone.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/lightAO.png",
-        "backgroundColor": "#ffffff",
-        "dark": {
-          "foregroundImage": "./assets/images/darkAO.png"
-        }
+        "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
     },
@@ -46,6 +43,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e8d24f4c-6c48-4751-8668-ae19b6bfb4b6"
+      }
     }
   }
 }
