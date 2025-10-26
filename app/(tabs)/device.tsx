@@ -5,6 +5,7 @@ import {
   FlatList,
   Pressable,
   SafeAreaView,
+  ScrollView, // ScrollView for Manager Buttons
   StatusBar,
   StyleSheet,
   Text,
@@ -25,45 +26,71 @@ import {
 
 type ConnectionStatus = "connected" | "connecting" | "disconnected" | "error";
 
-// --- ManagerButton component REMOVED ---
+// --- REUSABLE BUTTON COMPONENT (Unchanged Functionally) ---
+type ManagerButtonProps = {
+  label: string;
+  onPress: () => void;
+  icon: React.ReactNode;
+  disabled?: boolean;
+};
 
-// --- MAIN SCREEN COMPONENT ---
+const ManagerButton: React.FC<ManagerButtonProps> = ({
+  label,
+  onPress,
+  icon,
+  disabled,
+}) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => getManagerButtonStyles(colors), [colors]);
+
+  const iconColor = disabled ? colors.textMuted : colors.text;
+  const textColor = disabled ? colors.textMuted : colors.text;
+
+  return (
+    <Pressable
+      style={[styles.managerButton, disabled && styles.disabledButton]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      {React.cloneElement(icon as React.ReactElement, {
+        color: iconColor,
+      })}
+      <Text
+        style={[styles.managerButtonText, disabled && { color: textColor }]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+};
+
+// --- MAIN SCREEN COMPONENT (Logic Unchanged) ---
 export default function DeviceScreen() {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
-
-  // --- States for device management ---
   const [pairedSystems, setPairedSystems] = useState<Device[]>([]);
   const [connectedSystem, setConnectedSystem] = useState<Device | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
-
-  // --- State for the selected device in the list ---
   const [selectedSystemId, setSelectedSystemId] = useState<number | null>(null);
 
-  // --- Derived state to get the full selected system object ---
   const selectedSystem = useMemo(
     () => pairedSystems.find((s) => s.id === selectedSystemId),
     [pairedSystems, selectedSystemId]
   );
 
-  // --- Load devices from DB on mount ---
   useEffect(() => {
     loadDevices();
   }, []);
 
-  /**
-   * Fetches devices from DB and updates state
-   */
   const loadDevices = async () => {
     try {
-      await initDB(); // Ensure DB is initialized
+      await initDB();
       const devicesFromDB = await getDevices();
       setPairedSystems(devicesFromDB);
 
-      // If no devices, clear selection and connection
       if (devicesFromDB.length === 0) {
         setConnectedSystem(null);
         setConnectionStatus("disconnected");
@@ -74,21 +101,15 @@ export default function DeviceScreen() {
     }
   };
 
-  // --- Handlers ---
   const handleConnect = (system: Device) => {
     console.log("Connecting to:", system.name);
     setConnectionStatus("connecting");
-    // Simulate connection
     setTimeout(() => {
       setConnectedSystem(system);
       setConnectionStatus("connected");
-      console.log("Connected");
     }, 1000);
   };
 
-  /**
-   * Deletes a device from the DB and reloads the list
-   */
   const handleForget = (systemToForget: Device) => {
     Alert.alert(
       "Forget System",
@@ -100,17 +121,15 @@ export default function DeviceScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              // Disconnect if it's the active device
               if (connectedSystem?.id === systemToForget.id) {
                 setConnectedSystem(null);
                 setConnectionStatus("disconnected");
               }
-              // Clear selection if it's the selected device
               if (selectedSystemId === systemToForget.id) {
                 setSelectedSystemId(null);
               }
               await deleteDevice(systemToForget.id);
-              await loadDevices(); // Refresh list from DB
+              await loadDevices();
             } catch (error) {
               console.error("Failed to forget device:", error);
             }
@@ -120,13 +139,10 @@ export default function DeviceScreen() {
     );
   };
 
-  /**
-   * Adds a new device to the DB and reloads the list
-   */
   const handleAddNewSystem = async (newSystem: PASystem) => {
     try {
-      await addDevice(newSystem); // Add to DB
-      await loadDevices(); // Refresh list from DB
+      await addDevice(newSystem);
+      await loadDevices();
     } catch (error) {
       console.error("Failed to add new system:", error);
       Alert.alert("Error", "Failed to add new system. It may already exist.");
@@ -135,7 +151,6 @@ export default function DeviceScreen() {
     }
   };
 
-  // --- Button Press Handlers ---
   const onConnectPress = () => {
     if (selectedSystem) {
       handleConnect(selectedSystem);
@@ -163,9 +178,9 @@ export default function DeviceScreen() {
     }
   };
 
-  // --- RENDER SUB-COMPONENTS ---
-
+  // --- RENDER SUB-COMPONENTS (Unchanged) ---
   const renderStatusSection = () => {
+    // ... (same as before)
     if (connectionStatus === "connected" && connectedSystem) {
       // --- CONNECTED STATE ---
       return (
@@ -217,6 +232,7 @@ export default function DeviceScreen() {
   };
 
   const renderDeviceListItem = ({ item }: { item: Device }) => {
+    // ... (same as before)
     const isSelected = item.id === selectedSystemId;
     return (
       <Pressable
@@ -241,13 +257,13 @@ export default function DeviceScreen() {
     );
   };
 
+  // --- RENDER MAIN COMPONENT ---
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor={colors.background}
       />
-
       <View style={styles.container}>
         {/* --- 1. STATUS SECTION --- */}
         <View style={styles.sectionContainer}>
@@ -271,20 +287,20 @@ export default function DeviceScreen() {
           <View style={styles.buttonRow}>
             <Pressable
               style={styles.connectorButton}
-              onPress={() => setIsModalVisible(true)} // Open modal
+              onPress={() => setIsModalVisible(true)}
             >
               <Text style={styles.connectorButtonText}>Direct Connect</Text>
             </Pressable>
             <Pressable
               style={styles.connectorButton}
-              onPress={() => setIsModalVisible(true)} // Open modal
+              onPress={() => setIsModalVisible(true)}
             >
               <Text style={styles.connectorButtonText}>Network Connect</Text>
             </Pressable>
           </View>
         </View>
 
-        {/* --- 3. MANAGER SECTION --- */}
+        {/* --- 3. MANAGER SECTION (flex: 1) --- */}
         <View style={[styles.sectionContainer, styles.managerSection]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Manager</Text>
@@ -295,103 +311,39 @@ export default function DeviceScreen() {
             />
           </View>
 
-          {/* --- Horizontally Scrolling Buttons REMOVED --- */}
-          {/* --- New Button Container (like PresetModal) --- */}
-          <View style={styles.managerButtonContainer}>
-            <Pressable
-              style={[
-                styles.managerButton,
-                !selectedSystem && styles.managerButtonDisabled,
-              ]}
-              disabled={!selectedSystem}
+          {/* --- Horizontally Scrolling Buttons --- */}
+          <ScrollView
+            horizontal={true}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.buttonsScrollView}
+          >
+            <ManagerButton
+              label="Connect"
+              icon={<Ionicons name="sync" size={16} />}
               onPress={onConnectPress}
-            >
-              <Ionicons
-                name="sync"
-                size={16}
-                color={!selectedSystem ? colors.textMuted : colors.text}
-              />
-              <Text
-                style={[
-                  styles.managerButtonText,
-                  !selectedSystem && styles.managerButtonTextDisabled,
-                ]}
-              >
-                Connect
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.managerButton,
-                !selectedSystem && styles.managerButtonDisabled,
-              ]}
               disabled={!selectedSystem}
+            />
+            <ManagerButton
+              label="Info"
+              icon={<Ionicons name="information-circle-outline" size={16} />}
               onPress={onInfoPress}
-            >
-              <Ionicons
-                name="information-circle-outline"
-                size={16}
-                color={!selectedSystem ? colors.textMuted : colors.text}
-              />
-              <Text
-                style={[
-                  styles.managerButtonText,
-                  !selectedSystem && styles.managerButtonTextDisabled,
-                ]}
-              >
-                Info
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.managerButton,
-                !selectedSystem && styles.managerButtonDisabled,
-              ]}
               disabled={!selectedSystem}
+            />
+            <ManagerButton
+              label="Rename"
+              icon={<MaterialCommunityIcons name="pencil-outline" size={16} />}
               onPress={onRenamePress}
-            >
-              <MaterialCommunityIcons
-                name="pencil-outline"
-                size={16}
-                color={!selectedSystem ? colors.textMuted : colors.text}
-              />
-              <Text
-                style={[
-                  styles.managerButtonText,
-                  !selectedSystem && styles.managerButtonTextDisabled,
-                ]}
-              >
-                Rename
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.managerButton,
-                !selectedSystem && styles.managerButtonDisabled,
-              ]}
               disabled={!selectedSystem}
+            />
+            <ManagerButton
+              label="Forget"
+              icon={<Ionicons name="trash-outline" size={16} />}
               onPress={onForgetPress}
-            >
-              <Ionicons
-                name="trash-outline"
-                size={16}
-                color={!selectedSystem ? colors.textMuted : colors.text}
-              />
-              <Text
-                style={[
-                  styles.managerButtonText,
-                  !selectedSystem && styles.managerButtonTextDisabled,
-                ]}
-              >
-                Forget
-              </Text>
-            </Pressable>
-          </View>
+              disabled={!selectedSystem}
+            />
+          </ScrollView>
 
-          {/* --- Device List (will now scroll correctly) --- */}
+          {/* --- Device List (Scrolling) --- */}
           <FlatList
             data={pairedSystems}
             renderItem={renderDeviceListItem}
@@ -421,9 +373,34 @@ export default function DeviceScreen() {
 
 // --- STYLESHEET ---
 
-// --- getManagerButtonStyles function REMOVED ---
+// Styles for the new ManagerButton (Compact)
+const getManagerButtonStyles = (colors: typeof lightColors) =>
+  StyleSheet.create({
+    managerButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      paddingVertical: 8, // 👈 Reduced
+      paddingHorizontal: 12, // 👈 Reduced
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: 8, // 👈 Reduced
+    },
+    managerButtonText: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: "600",
+      marginLeft: 6, // 👈 Reduced
+    },
+    disabledButton: {
+      backgroundColor: colors.inactiveTint,
+      opacity: 0.7,
+      borderColor: colors.border,
+    },
+  });
 
-// Main component styles
+// Main component styles (Adjusted Spacing)
 const getStyles = (colors: typeof lightColors, isDark: boolean) =>
   StyleSheet.create({
     safeArea: {
@@ -437,21 +414,23 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
     sectionContainer: {
       backgroundColor: colors.card,
       borderRadius: 12,
-      padding: 16,
-      marginBottom: 16,
+      padding: 12, // 👈 Reduced overall padding for sections
+      marginBottom: 12, // 👈 Reduced margin between sections
       borderWidth: 1,
       borderColor: colors.border,
     },
     managerSection: {
-      flex: 1,
+      flex: 1, // Takes remaining space
       minHeight: 0,
+      marginBottom: 0, // No margin at the bottom for the last section
+      padding: 12, // Keep manager padding consistent
     },
     sectionHeader: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingBottom: 12,
-      marginBottom: 12,
+      paddingBottom: 8, // 👈 Reduced
+      marginBottom: 8, // 👈 Reduced
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -460,30 +439,30 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       fontWeight: "600",
       color: colors.text,
     },
-    // --- Status Section Styles ---
+    // --- Status Section Styles (Shrunk) ---
     statusContent: {
       flexDirection: "row",
-      paddingVertical: 8,
-      minHeight: 100,
+      paddingVertical: 4,
+      minHeight: 70, // 👈 Further Reduced
       alignItems: "center",
     },
     statusEmptyText: {
       fontSize: 16,
       color: colors.textMuted,
-      lineHeight: 24,
+      lineHeight: 22, // 👈 Reduced
     },
     addTextLink: {
       color: colors.primary,
       fontWeight: "600",
     },
     statusImagePlaceholder: {
-      width: 80,
-      height: 80,
-      borderRadius: 8,
+      width: 50, // 👈 Further Reduced
+      height: 50, // 👈 Further Reduced
+      borderRadius: 6, // 👈 Reduced
       backgroundColor: colors.background,
       alignItems: "center",
       justifyContent: "center",
-      marginRight: 16,
+      marginRight: 10, // 👈 Reduced
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -495,24 +474,24 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      paddingVertical: 2,
+      paddingVertical: 1,
     },
     statusLabel: {
-      fontSize: 15,
+      fontSize: 14, // 👈 Reduced
       color: colors.textMuted,
       fontWeight: "500",
     },
     statusValue: {
-      fontSize: 15,
+      fontSize: 14, // 👈 Reduced
       color: colors.text,
       fontWeight: "600",
     },
-    // --- Connector Button Styles ---
+    // --- Connector Button Styles (Shrunk) ---
     buttonRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       gap: 8,
-      marginBottom: 16,
+      // marginBottom removed (handled by sectionContainer margin)
     },
     connectorButton: {
       flex: 1,
@@ -520,7 +499,7 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: colors.background,
-      paddingVertical: 12,
+      paddingVertical: 10,
       paddingHorizontal: 10,
       borderRadius: 8,
       borderWidth: 1,
@@ -532,48 +511,21 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       fontSize: 13,
       textAlign: "center",
     },
-    // --- Manager Button Styles (modeled after PresetModal tabs) ---
-    managerButtonContainer: {
-      flexDirection: "row",
-      justifyContent: "space-around",
-      backgroundColor: colors.card, // Container is card color
-      borderRadius: 10,
-      padding: 4,
-      marginBottom: 16,
-      gap: 4, // Space between buttons
-    },
-    managerButton: {
-      flex: 1, // Each button takes equal space
+    // --- Manager Button ScrollView Style ---
+    buttonsScrollView: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: colors.background, // Inactive tab color
-      paddingVertical: 10,
-      paddingHorizontal: 8, // Adjust padding to fit 4
-      borderRadius: 8, // Rounded corners for the button
+      marginBottom: 12, // 👈 Reduced
     },
-    managerButtonText: {
-      color: colors.text,
-      fontWeight: "600",
-      fontSize: 13, // Smaller font to fit
-      marginLeft: 6, // Space from icon
-    },
-    managerButtonDisabled: {
-      backgroundColor: colors.inactiveTint,
-      opacity: 0.7,
-    },
-    managerButtonTextDisabled: {
-      color: colors.textMuted,
-    },
-    // --- buttonsScrollView style REMOVED ---
-    // --- Device List Styles ---
+    // --- Device List Styles (Compact) ---
     deviceListItem: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      padding: 16,
+      paddingVertical: 10, // 👈 Reduced
+      paddingHorizontal: 12, // 👈 Reduced
       borderRadius: 8,
-      marginBottom: 8,
+      marginBottom: 4, // 👈 Reduced
       borderWidth: 1,
       borderColor: "transparent",
     },
@@ -583,7 +535,7 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
     },
     deviceListInfo: {
       flex: 1,
-      gap: 4,
+      gap: 2,
     },
     deviceName: {
       fontSize: 16,
