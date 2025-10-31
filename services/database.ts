@@ -2,16 +2,15 @@ import * as FileSystem from "expo-file-system";
 import { openDatabaseAsync, SQLiteDatabase } from "expo-sqlite";
 
 /* --- Types --- */
+
+// --- 👇 SIMPLIFIED DEVICE TYPE ---
 export type Device = {
-  id: string;
-  name: string;
-  ssid: string;
-  ipAddress?: string;
-  serialNo?: string;
-  helpText?: string;
-  codeName?: string;
-  image?: string;
+  id: string; // BSSID (MAC Address) - Primary Key
+  name: string; // User-friendly name (defaults to SSID)
+  ssid: string; // WiFi Network Name
+  modelCode?: string; // e.g., "38B14" (obtained after connection)
 };
+// --- END OF SIMPLIFICATION ---
 
 export type Preset = {
   id?: number;
@@ -36,16 +35,37 @@ export type Preset = {
   };
 };
 
-/* --- Mock data --- */
+/* --- Mock data (Updated to match simplified type) --- */
 const MOCK_PAIRED_SYSTEMS: Device[] = [
-  { id: "1", name: "Living Room Speaker", ssid: "AcousticsOne-LR-5G" },
-  { id: "2", name: "Bedroom Amp", ssid: "AcousticsOne-BR-2.4G" },
-  { id: "3", name: "Garage PA", ssid: "AcousticsOne-GRG-5G" },
-  { id: "4", name: "Basement System", ssid: "AcousticsOne-BSMT-2.4G" },
+  {
+    id: "AA:BB:CC:DD:EE:01",
+    name: "Living Room Speaker",
+    ssid: "AcousticsOne-LR-5G",
+    modelCode: "38B14",
+  },
+  {
+    id: "AA:BB:CC:DD:EE:02",
+    name: "Bedroom Amp",
+    ssid: "AcousticsOne-BR-2.4G",
+    modelCode: "38B14",
+  },
+  {
+    id: "AA:BB:CC:DD:EE:03",
+    name: "Garage PA",
+    ssid: "AcousticsOne-GRG-5G",
+    modelCode: "38B14",
+  },
+  {
+    id: "AA:BB:CC:DD:EE:04",
+    name: "Basement System",
+    ssid: "AcousticsOne-BSMT-2.4G",
+    modelCode: "38B14",
+  },
 ];
 
 // --- *** FIXED: FULL GTZAN PRESET LIST *** ---
 const GTZAN_PRESETS: Omit<Preset, "id">[] = [
+  // ... (GTZAN presets remain unchanged) ...
   {
     name: "Blues",
     type: "gtzan",
@@ -303,18 +323,16 @@ export const initDB = async (): Promise<void> => {
       );
     `);
 
+    // --- 👇 UPDATED DEVICES TABLE SCHEMA ---
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS devices (
         id TEXT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL,
         ssid TEXT NOT NULL,
-        ipAddress TEXT,
-        serialNo TEXT,
-        helpText TEXT,
-        codeName TEXT,
-        image TEXT
+        modelCode TEXT
       );
     `);
+    // --- END OF UPDATE ---
 
     // Populate GTZAN presets if none exist
     try {
@@ -344,12 +362,14 @@ export const initDB = async (): Promise<void> => {
       );
       const dcount = deviceCountRow?.count ?? 0;
       if (dcount === 0) {
+        // --- 👇 UPDATED MOCK DEVICE INSERTION ---
         for (const d of MOCK_PAIRED_SYSTEMS) {
           await database.runAsync(
-            "INSERT INTO devices (id, name, ssid) VALUES (?, ?, ?);",
-            [d.id, d.name, d.ssid]
+            "INSERT INTO devices (id, name, ssid, modelCode) VALUES (?, ?, ?, ?);",
+            [d.id, d.name, d.ssid, d.modelCode ?? null]
           );
         }
+        // --- END OF UPDATE ---
       }
     } catch (err) {
       console.warn("initDB: error inserting mock devices", err);
@@ -361,7 +381,7 @@ export const initDB = async (): Promise<void> => {
   return _initPromise;
 };
 
-/* --- Preset functions --- */
+/* --- Preset functions (Unchanged) --- */
 
 export const getPresets = async (
   type: "gtzan" | "custom" | "all" = "all"
@@ -428,24 +448,18 @@ export const getDevices = async (): Promise<Device[]> => {
   return rows;
 };
 
+// --- 👇 UPDATED addDevice ---
 export const addDevice = async (device: Device): Promise<RunResult> => {
   const database = await getDB();
+  // Only insert essential fields
   const res = (await database.runAsync(
-    `INSERT INTO devices (id, name, ssid, ipAddress, serialNo, helpText, codeName, image)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-    [
-      device.id,
-      device.name,
-      device.ssid,
-      device.ipAddress ?? null,
-      device.serialNo ?? null,
-      device.helpText ?? null,
-      device.codeName ?? null,
-      device.image ?? null,
-    ]
+    `INSERT INTO devices (id, name, ssid, modelCode)
+     VALUES (?, ?, ?, ?);`,
+    [device.id, device.name, device.ssid, device.modelCode ?? null]
   )) as unknown as RunResult;
   return res;
 };
+// --- END OF UPDATE ---
 
 export const deleteDevice = async (id: string): Promise<RunResult> => {
   const database = await getDB();
@@ -454,6 +468,20 @@ export const deleteDevice = async (id: string): Promise<RunResult> => {
   ])) as unknown as RunResult;
   return res;
 };
+
+// --- 👇 NEW FUNCTION TO UPDATE modelCode ---
+export const updateDeviceModelCode = async (
+  id: string,
+  modelCode: string
+): Promise<RunResult> => {
+  const database = await getDB();
+  const res = (await database.runAsync(
+    "UPDATE devices SET modelCode = ? WHERE id = ?;",
+    [modelCode, id]
+  )) as unknown as RunResult;
+  return res;
+};
+// --- END OF NEW FUNCTION ---
 
 export const updateDeviceName = async (
   id: string,

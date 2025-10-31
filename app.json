@@ -39,7 +39,15 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "react-native-wifi-reborn",
+        {
+          "fineLocationPermission": true,
+          "NSLocalNetworkUsageDescription": "This app needs to connect to local amplifier systems.",
+          "NSLocationWhenInUseUsageDescription": "This app needs location access to find and connect to WiFi networks."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
