@@ -149,8 +149,8 @@ export const Knob: React.FC<KnobProps> = ({
               dialBaseImage // 1. Use prop if provided
                 ? dialBaseImage
                 : isDark // 2. Otherwise, check theme
-                ? require("../assets/images/dial-base.png") // 3. Dark theme -> light dial
-                : require("../assets/images/dial-base-dark.png") // 4. Light theme -> dark dial
+                ? require("../assets/images/dial-base-dark.png") // 3. Dark theme -> light dial
+                : require("../assets/images/dial-base.png") // 4. Light theme -> dark dial
             }
             style={styles.knobImage}
           />

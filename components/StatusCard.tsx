@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Device } from "../services/database";
 import { useTheme } from "../theme/ThemeContext";
 import { lightColors } from "../theme/colors";
@@ -10,13 +10,13 @@ type ConnectionStatus = "connected" | "connecting" | "disconnected" | "error";
 interface StatusCardProps {
   connectionStatus: ConnectionStatus;
   connectedSystem: Device | null;
-  onAddDevice: () => void;
+  onRefresh: () => void;
 }
 
 export const StatusCard: React.FC<StatusCardProps> = ({
   connectionStatus,
   connectedSystem,
-  onAddDevice,
+  onRefresh,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
@@ -62,18 +62,20 @@ export const StatusCard: React.FC<StatusCardProps> = ({
         </View>
       );
     }
+
+    // --- ❗️ FIX IS HERE ---
+    // This block now renders a clear message with a visible "Refresh"
+    // link for both 'disconnected' and 'error' states.
     return (
       <View style={styles.statusContent}>
         <Text style={styles.statusEmptyText}>
           {connectionStatus === "error"
-            ? "Connection failed. Please check device and network."
-            : "No device connected. Tap "}
-          {connectionStatus !== "error" && (
-            <Text style={styles.addTextLink} onPress={onAddDevice}>
-              add(+)
-            </Text>
-          )}
-          {connectionStatus !== "error" && " to scan for devices."}
+            ? "Connection failed. Check network and tap "
+            : "No device connected. Connect to device WiFi and tap "}
+          <Pressable onPress={onRefresh}>
+            <Text style={styles.addTextLink}>Refresh</Text>
+          </Pressable>
+          .
         </Text>
       </View>
     );
@@ -130,12 +132,14 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       flex: 1,
       fontSize: 16,
       color: colors.textMuted,
-      lineHeight: 22,
+      lineHeight: 24, // Added for better line spacing
       textAlign: "center",
     },
     addTextLink: {
       color: colors.primary,
       fontWeight: "600",
+      fontSize: 16,
+      lineHeight: 24, // Match the empty text
     },
     statusImagePlaceholder: {
       width: 50,

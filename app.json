@@ -17,7 +17,8 @@
         "foregroundImage": "./assets/images/lightAO.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": ["android.permission.ACCESS_FINE_LOCATION"]
     },
     "web": {
       "bundler": "metro",
@@ -39,15 +40,7 @@
           }
         }
       ],
-      "expo-sqlite",
-      [
-        "react-native-wifi-reborn",
-        {
-          "fineLocationPermission": true,
-          "NSLocalNetworkUsageDescription": "This app needs to connect to local amplifier systems.",
-          "NSLocationWhenInUseUsageDescription": "This app needs location access to find and connect to WiFi networks."
-        }
-      ]
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true

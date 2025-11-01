@@ -1,12 +1,12 @@
-import { deleteAsync, documentDirectory } from "expo-file-system/legacy"; // 👈 UPDATED imports
+import { deleteAsync, documentDirectory } from "expo-file-system/legacy";
 import { openDatabaseAsync, SQLiteDatabase } from "expo-sqlite";
 
 /* --- Types --- */
 
 export type Device = {
-  id: string; // BSSID (MAC Address) - Primary Key
+  id: string; // ❗️ This is now the Serial Code (e.g., "236EC30") - Primary Key
   name: string; // User-friendly name (defaults to SSID)
-  ssid: string; // WiFi Network Name
+  ssid: string; // WiFi Network Name (e.g., "PE PRO 38B14")
   modelCode?: string; // e.g., "38B14" (obtained after connection)
 };
 
@@ -33,11 +33,9 @@ export type Preset = {
   };
 };
 
-// --- MOCK_PAIRED_SYSTEMS array removed ---
-
 // --- GTZAN PRESET LIST ---
 const GTZAN_PRESETS: Omit<Preset, "id">[] = [
-  // ... (GTZAN presets remain unchanged) ...
+  // ... (Your presets remain unchanged) ...
   {
     name: "Blues",
     type: "gtzan",
@@ -267,35 +265,31 @@ type RunResult = {
   insertId?: number;
 };
 
-/* --- UPDATED resetDB FUNCTION --- */
+/* --- resetDB FUNCTION --- */
 export const resetDB = async (): Promise<void> => {
-  // Close the database connection if it's open
   if (db) {
     await db.closeAsync();
     db = null;
-    _initPromise = null; // Reset init promise
+    _initPromise = null;
     console.log("Database connection closed for reset.");
   }
 
   const dbPath = `${documentDirectory}SQLite/acousticone.db`;
   try {
-    // Use the legacy deleteAsync
     await deleteAsync(dbPath, { idempotent: true });
     console.log("🧹 Old database deleted successfully");
   } catch (err) {
     console.warn("⚠️ Error deleting database:", err);
   }
 };
-/* --- END OF UPDATE --- */
 
 /* --- Initialization --- */
 export const initDB = async (): Promise<void> => {
-  if (_initPromise) return _initPromise; // single init call
+  if (_initPromise) return _initPromise;
 
   _initPromise = (async () => {
     const database = await getDB();
 
-    // Create tables
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS presets (
         id INTEGER PRIMARY KEY NOT NULL,
@@ -314,7 +308,6 @@ export const initDB = async (): Promise<void> => {
       );
     `);
 
-    // Populate GTZAN presets if none exist
     try {
       const presetCountRow = await database.getFirstAsync<{ count: number }>(
         "SELECT COUNT(*) as count FROM presets WHERE type = ?;",
@@ -335,8 +328,7 @@ export const initDB = async (): Promise<void> => {
       console.warn("initDB: error inserting GTZAN presets", err);
     }
 
-    // --- MOCK DEVICE INSERTION REMOVED ---
-    console.log("✅ Database initialized successfully (no mocks).");
+    console.log("✅ Database initialized successfully.");
   })();
 
   return _initPromise;
@@ -399,7 +391,7 @@ export const deletePreset = async (id: number): Promise<RunResult> => {
   return res;
 };
 
-/* --- Device functions --- */
+/* --- Device functions (Unchanged, but 'id' is now Serial Code) --- */
 
 export const getDevices = async (): Promise<Device[]> => {
   const database = await getDB();

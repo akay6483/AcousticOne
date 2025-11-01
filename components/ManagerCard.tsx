@@ -2,8 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import {
   FlatList,
-  Pressable,
-  ScrollView,
+  Pressable, // 👈 This will be removed from the component
   StyleSheet,
   Text,
   View,
@@ -49,6 +48,7 @@ const ManagerButton: React.FC<ManagerButtonProps> = ({
 };
 
 // --- Device List Item ---
+// ... (This component is unchanged) ...
 interface DeviceListItemProps {
   item: Device;
   isSelected: boolean;
@@ -91,9 +91,7 @@ const DeviceListItem: React.FC<DeviceListItemProps> = ({
 interface ManagerCardProps {
   pairedSystems: Device[];
   selectedSystemId: string | null;
-  isConnectDisabled: boolean;
   onSelectSystem: (id: string) => void;
-  onConnect: () => void;
   onInfo: () => void;
   onRename: () => void;
   onForget: () => void;
@@ -102,9 +100,7 @@ interface ManagerCardProps {
 export const ManagerCard: React.FC<ManagerCardProps> = ({
   pairedSystems,
   selectedSystemId,
-  isConnectDisabled,
   onSelectSystem,
-  onConnect,
   onInfo,
   onRename,
   onForget,
@@ -119,17 +115,9 @@ export const ManagerCard: React.FC<ManagerCardProps> = ({
         <MaterialCommunityIcons name="devices" size={24} color={colors.icon} />
       </View>
 
-      <ScrollView
-        horizontal={true}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.buttonsScrollView}
-      >
-        <ManagerButton
-          label="Connect"
-          icon={<Ionicons name="sync" size={16} />}
-          onPress={onConnect}
-          disabled={isConnectDisabled}
-        />
+      {/* --- ❗️ FIX IS HERE --- */}
+      {/* Replaced ScrollView with a View to allow buttons to space out */}
+      <View style={styles.buttonsRow}>
         <ManagerButton
           label="Info"
           icon={<Ionicons name="information-circle-outline" size={16} />}
@@ -148,7 +136,8 @@ export const ManagerCard: React.FC<ManagerCardProps> = ({
           onPress={onForget}
           disabled={!selectedSystemId}
         />
-      </ScrollView>
+      </View>
+      {/* --- END OF FIX --- */}
 
       <FlatList
         data={pairedSystems}
@@ -164,7 +153,7 @@ export const ManagerCard: React.FC<ManagerCardProps> = ({
           <View style={styles.emptyListContainer}>
             <Text style={styles.emptyListText}>No paired devices.</Text>
             <Text style={styles.emptyListText}>
-              Tap 'Direct Connect' or 'Network Connect' to add one.
+              Connect to a device's WiFi and tap 'Refresh' to add one.
             </Text>
           </View>
         }
@@ -177,15 +166,17 @@ export const ManagerCard: React.FC<ManagerCardProps> = ({
 const getButtonStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     managerButton: {
+      flex: 1, // 👈 Added this to make buttons fill space
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "center", // 👈 Added this to center content
       backgroundColor: colors.card,
       paddingVertical: 8,
       paddingHorizontal: 12,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.border,
-      marginRight: 8,
+      // marginRight: 8, // 👈 Removed this
     },
     managerButtonText: {
       color: colors.text,
@@ -201,6 +192,7 @@ const getButtonStyles = (colors: typeof lightColors) =>
 
 const getListStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
+    // ... (This style function is unchanged) ...
     deviceListItem: {
       flexDirection: "row",
       alignItems: "center",
@@ -271,10 +263,12 @@ const getCardStyles = (colors: typeof lightColors, isDark: boolean) =>
       fontWeight: "600",
       color: colors.text,
     },
-    buttonsScrollView: {
+    // ❗️ RENAMED this style
+    buttonsRow: {
       flexDirection: "row",
       alignItems: "center",
       marginBottom: 12,
+      gap: 8, // 👈 Added gap for spacing
     },
     emptyListContainer: {
       padding: 20,
