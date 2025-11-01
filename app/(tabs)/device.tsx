@@ -156,6 +156,12 @@ export default function DeviceScreen() {
       console.error("Connection failed:", error);
       setConnectionStatus("error");
       setConnectedSystem(null);
+      // Only show alert on manual connect, not auto-connect
+      if (error instanceof Error) {
+        Alert.alert("Connection Failed", `Could not connect: ${error.message}`);
+      } else {
+        Alert.alert("Connection Failed", "Could not connect to the device.");
+      }
     }
     return undefined;
   };
@@ -240,7 +246,6 @@ export default function DeviceScreen() {
 
     // 2. If not, this is a Network Connect, we need to find its IP via SSDP
     if (!ipToUse) {
-      // This is the placeholder for your Network Connect logic
       Alert.alert(
         "Network Connect",
         "Please connect to the device's WiFi hotspot first (`Direct Connect`). Network discovery (SSDP) is not fully implemented yet."
@@ -289,7 +294,7 @@ export default function DeviceScreen() {
                   setSelectedSystemId(null);
                 }
                 await deleteDevice(selectedSystem.id);
-                await loadDevices();
+                await loadDevices(); // Reload the list
               } catch (error) {
                 console.error("Failed to forget device:", error);
               }
@@ -311,7 +316,6 @@ export default function DeviceScreen() {
     }
   };
 
-  // --- 👇 RENAMED FUNCTION (Implemented) ---
   const onRenamePress = () => {
     if (!selectedSystem) return;
 
@@ -347,7 +351,6 @@ export default function DeviceScreen() {
       selectedSystem.name
     );
   };
-  // --- END OF UPDATE ---
 
   // --- 4. RENDER ---
   return (
