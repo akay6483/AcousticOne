@@ -1,418 +1,280 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Network from "expo-network";
+import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
-  PermissionsAndroid,
-  Platform,
-  SafeAreaView,
-  StatusBar,
+  FlatList,
+  Pressable,
+  ScrollView,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
-
-// --- Import NEW libraries ---
-import NetInfo from "@react-native-community/netinfo";
-import DeviceInfo from "react-native-device-info";
-
-// --- Import Custom Components ---
-import { ManagerCard } from "../../components/ManagerCard";
 import { StatusCard } from "../../components/StatusCard";
-
-// --- Import Theme ---
-import { useTheme } from "../../theme/ThemeContext";
-import { lightColors } from "../../theme/colors";
-
-// --- DATABASE IMPORTS ---
 import {
-  Device,
   addDevice,
   deleteDevice,
+  Device,
   getDevices,
-  initDB,
-  updateDeviceName,
+  updateDeviceModelCode,
 } from "../../services/database";
-
-// --- Import storage helpers ---
 import {
-  getLastConnectedDeviceID, // 👈 FIX 1: Import this
+  getLastConnectedDeviceID,
   storeLastConnectedDeviceID,
 } from "../../services/storage";
+import { lightColors } from "../../theme/colors";
+import { useTheme } from "../../theme/ThemeContext";
 
-type ConnectionStatus = "connected" | "connecting" | "disconnected" | "error";
+type ConnectionStatus =
+  | "connected"
+  | "connecting"
+  | "disconnected"
+  | "error"
+  | "connected (manual)"
+  | "connected (last)";
 
-// --- Test/Production switch ---
-const SSID_PREFIX_FILTER: string[] | null = ["PE PRO "];
-const DEVICE_HOTSPOT_IP = "192.168.4.1";
-
-// --- MAIN SCREEN COMPONENT ---
-export default function DeviceScreen() {
+export default function DeviceScreen(): JSX.Element {
   const { colors, isDark } = useTheme();
-  const styles = useMemo(() => getStyles(colors), [colors, isDark]);
+  const styles = getStyles(colors, isDark);
 
-  // Device & Connection State
-  const [pairedSystems, setPairedSystems] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
   const [connectedSystem, setConnectedSystem] = useState<Device | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
-  const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // Derived State
-  const selectedSystem = useMemo(
-    () => pairedSystems.find((s) => s.id === selectedSystemId),
-    [pairedSystems, selectedSystemId]
-  );
-
-  // --- 1. APP INITIALIZATION ---
-  useEffect(() => {
-    const initializeApp = async () => {
-      // 1. Load all paired devices from the DB and set selected
-      await loadDevices();
-      // 2. Attempt to auto-connect to the *current* network
-      await handleConnectionAttempt();
-    };
-
-    initializeApp();
-  }, []);
-
-  // --- 2. CORE LOGIC FUNCTIONS ---
-
-  const loadDevices = async () => {
+  /* --- Load Devices from DB --- */
+  const loadDevices = useCallback(async (): Promise<Device[]> => {
     try {
-      await initDB();
-      const devicesFromDB = await getDevices();
-      setPairedSystems(devicesFromDB);
-
-      const lastConnectedId = await getLastConnectedDeviceID(); // 👈 FIX 2: Get last ID
-
-      if (devicesFromDB.length === 0) {
-        setConnectedSystem(null);
-        setConnectionStatus("disconnected");
-        setSelectedSystemId(null);
-      } else {
-        // 👈 FIX 3: Smarter selection logic
-        const lastDevice = devicesFromDB.find((d) => d.id === lastConnectedId);
-        if (lastDevice) {
-          setSelectedSystemId(lastDevice.id);
-        } else if (!selectedSystemId) {
-          // Default selection to the first device if last connected is not found
-          setSelectedSystemId(devicesFromDB[0].id);
-        }
-      }
-      return devicesFromDB;
-    } catch (error) {
-      console.error("Failed to load devices:", error);
+      const list = await getDevices();
+      setDevices(list);
+      return list;
+    } catch (err) {
+      console.warn("Error loading devices:", err);
       return [];
     }
-  };
+  }, []);
 
-  /**
-   * Fetches the Model Code and *Serial Code* from the device.
-   * The Serial Code is now our unique ID.
-   */
-  const fetchDeviceInfo = async (
-    ipAddress: string
-  ): Promise<{ modelCode: string; serialCode: string } | undefined> => {
+  /* --- Detect and Sync Device --- */
+  const detectAndSyncDevice = useCallback(async (): Promise<void> => {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      const response = await fetch(`http://${ipAddress}/getSerial/`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      const text = await response.text();
-      // .ino file sends: "serial/MODEL_CODE/SERIAL_CODE/"
-      if (text.startsWith("serial/")) {
-        const parts = text.split("/");
-        if (parts.length >= 3) {
-          // parts[1] is modelCode, parts[2] is serialCode
-          return { modelCode: parts[1], serialCode: parts[2] };
-        }
-      }
-    } catch (e) {
-      console.error("Failed to fetch device info:", e);
-    }
-    return undefined;
-  };
+      setConnectionStatus("connecting");
 
-  /**
-   * Pings the device, and if successful, fetches its info.
-   */
-  const performConnection = async (
-    ipAddress: string
-  ): Promise<{ modelCode: string; serialCode: string } | undefined> => {
-    setConnectionStatus("connecting");
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      const response = await fetch(`http://${ipAddress}/isthere/`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+      const networkState = await Network.getNetworkStateAsync();
+      const ssid =
+        (networkState.details as { ssid?: string })?.ssid ?? "<unknown ssid>";
 
-      const text = await response.text(); // Expected: "YES/MODEL_CODE/"
-      if (text.startsWith("YES/")) {
-        // Now that we know it's there, get the full info
-        return await fetchDeviceInfo(ipAddress);
-      } else {
-        throw new Error("Device did not respond correctly");
-      }
-    } catch (error) {
-      console.error("Connection failed:", error);
-      setConnectionStatus("error");
-      setConnectedSystem(null);
-      if (error instanceof Error) {
-        if (
-          !(error as any).message?.includes("Abort") // Don't alert on timeout
-        ) {
-          Alert.alert(
-            "Connection Failed",
-            `Could not connect: ${error.message}`
-          );
-        }
-      } else {
-        Alert.alert("Connection Failed", "Could not connect to the device.");
-      }
-    }
-    return undefined;
-  };
-
-  /**
-   * Requests Android's location permission, which is required
-   * to read the WiFi SSID.
-   */
-  const requestPermissions = async () => {
-    if (Platform.OS === "android") {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: "Location Permission Required",
-            message:
-              "This app needs location access to read your WiFi network name (SSID) and find the device.",
-            buttonPositive: "OK",
-          }
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true; // iOS doesn't require this
-  };
-
-  // --- 3. EVENT HANDLERS ---
-
-  /**
-   * This is the main connection logic.
-   * It checks the current WiFi and connects/pairs if it's a device.
-   */
-  const handleConnectionAttempt = async () => {
-    setConnectionStatus("connecting");
-
-    // 1. Check permissions
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      Alert.alert(
-        "Permission Required",
-        "Location permission is needed to read the WiFi network name."
-      );
-      setConnectionStatus("error");
-      return;
-    }
-
-    // 2. Check if on WiFi
-    const netState = await NetInfo.fetch();
-    if (netState.type !== "wifi") {
-      Alert.alert(
-        "Not on WiFi",
-        "Please connect to your device's WiFi hotspot and tap Refresh."
-      );
-      setConnectionStatus("disconnected");
-      return;
-    }
-
-    // 3. Get current WiFi SSID
-    let ssid: string | null = null;
-    try {
-      ssid = await DeviceInfo.getSsid();
-    } catch (e) {
-      console.error("Could not get SSID:", e);
-      Alert.alert("Error", "Could not read WiFi SSID. Is location on?");
-      setConnectionStatus("error");
-      return;
-    }
-
-    // 4. Check if it's one of our devices
-    const isDeviceHotspot =
-      ssid &&
-      (SSID_PREFIX_FILTER === null
-        ? true
-        : SSID_PREFIX_FILTER.some((prefix) => ssid.startsWith(prefix)));
-
-    if (!isDeviceHotspot || !ssid) {
-      Alert.alert(
-        "Wrong WiFi",
-        `You are on "${
-          ssid || "an unknown network"
-        }". Please connect to your device's WiFi (e.g., "PE PRO ...") and tap Refresh.`
-      );
-      setConnectionStatus("disconnected");
-      return;
-    }
-
-    // 5. We are on the correct WiFi, connect to the hardcoded IP
-    const deviceInfo = await performConnection(DEVICE_HOTSPOT_IP);
-
-    if (deviceInfo) {
-      const { modelCode, serialCode } = deviceInfo;
-
-      // 6. Check if this device is already paired (using serialCode as ID)
-      const existingDevice = pairedSystems.find((d) => d.id === serialCode);
-
-      if (existingDevice) {
-        // --- Device is ALREADY PAIRED ---
-        setConnectedSystem(existingDevice);
-        setConnectionStatus("connected");
-        setSelectedSystemId(existingDevice.id);
-        await storeLastConnectedDeviceID(existingDevice.id);
-      } else {
-        // --- This is a NEW DEVICE, let's pair it ---
-        const newDevice: Device = {
-          id: serialCode, // ❗️ Use serialCode as the ID
-          name: ssid, // Use the SSID as the default name
-          ssid: ssid,
-          modelCode: modelCode,
-        };
-
-        try {
-          await addDevice(newDevice);
-          await storeLastConnectedDeviceID(newDevice.id);
-          setConnectedSystem(newDevice);
-          setConnectionStatus("connected");
-          setSelectedSystemId(newDevice.id);
-          await loadDevices(); // Reload list to include new device
-        } catch (error) {
-          console.error("Failed to add new system:", error);
-          Alert.alert("Error", "Failed to save new system.");
-        }
-      }
-    }
-  };
-
-  const onForgetPress = () => {
-    if (selectedSystem) {
-      Alert.alert(
-        "Forget System",
-        `Are you sure you want to forget ${selectedSystem.name}?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Forget",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                if (connectedSystem?.id === selectedSystem.id) {
-                  setConnectedSystem(null);
-                  setConnectionStatus("disconnected");
-                }
-                if (selectedSystemId === selectedSystem.id) {
-                  setSelectedSystemId(null);
-                }
-                await deleteDevice(selectedSystem.id);
-                await loadDevices(); // Reload the list
-              } catch (error) {
-                console.error("Failed to forget device:", error);
-              }
-            },
-          },
-        ]
-      );
-    }
-  };
-
-  const onInfoPress = () => {
-    if (selectedSystem) {
-      Alert.alert(
-        "Device Info",
-        `Name: ${selectedSystem.name}\nSSID: ${selectedSystem.ssid}\nSerial: ${
-          selectedSystem.id
-        }\nModel: ${selectedSystem.modelCode ?? "Unknown"}`
-      );
-    }
-  };
-
-  const onRenamePress = () => {
-    if (!selectedSystem) return;
-
-    Alert.prompt(
-      "Rename Device",
-      "Enter a new name:",
-      async (newName) => {
-        if (
-          newName &&
-          newName.trim() !== "" &&
-          newName !== selectedSystem.name
-        ) {
-          try {
-            await updateDeviceName(selectedSystem.id, newName.trim());
-            await loadDevices(); // Refresh the list from the database
-            if (connectedSystem?.id === selectedSystem.id) {
-              setConnectedSystem((prev) =>
-                prev ? { ...prev, name: newName.trim() } : null
-              );
-            }
-          } catch (error) {
-            console.error("Failed to rename device:", error);
-            Alert.alert("Error", "Could not rename device.");
+      if (!ssid || ssid === "<unknown ssid>") {
+        // Load last connected device if available
+        const lastId = await getLastConnectedDeviceID();
+        if (lastId) {
+          const existing = (await getDevices()).find((d) => d.id === lastId);
+          if (existing) {
+            setConnectedSystem(existing);
+            setConnectionStatus("connected (last)");
+            return;
           }
         }
+
+        setConnectedSystem(null);
+        setConnectionStatus("disconnected");
+        return;
+      }
+
+      console.log("📡 Connected SSID:", ssid);
+
+      // Match known device naming pattern
+      const match = ssid.match(/(PE|ACOUSTIC|PRO)\s?(\w+)/i);
+      if (!match) {
+        setConnectionStatus("disconnected");
+        setConnectedSystem(null);
+        return;
+      }
+
+      const modelCode = match[2];
+      const deviceId = modelCode.toUpperCase();
+      const newDevice: Device = {
+        id: deviceId,
+        name: ssid,
+        ssid,
+        modelCode,
+      };
+
+      const existingDevices = await loadDevices();
+      const existing = existingDevices.find((d) => d.id === deviceId);
+
+      if (!existing) {
+        await addDevice(newDevice);
+        console.log("🆕 Device added:", newDevice.name);
+      } else {
+        await updateDeviceModelCode(deviceId, modelCode);
+      }
+
+      setConnectedSystem(newDevice);
+      setConnectionStatus("connected");
+      await storeLastConnectedDeviceID(newDevice.id);
+      setDevices(await loadDevices());
+    } catch (err) {
+      console.warn("WiFi detection error:", err);
+      setConnectionStatus("error");
+    }
+  }, [loadDevices]);
+
+  /* --- Initial Load --- */
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await loadDevices();
+      await detectAndSyncDevice();
+      setLoading(false);
+    })();
+  }, [loadDevices, detectAndSyncDevice]);
+
+  /* --- Delete Device --- */
+  const handleDeleteDevice = async (id: string): Promise<void> => {
+    Alert.alert("Remove Device", "Do you want to remove this device?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          await deleteDevice(id);
+          setDevices(await loadDevices());
+          if (connectedSystem?.id === id) {
+            setConnectedSystem(null);
+            setConnectionStatus("disconnected");
+          }
+        },
       },
-      "plain-text",
-      selectedSystem.name
-    );
+    ]);
   };
 
-  // --- 4. RENDER ---
+  /* --- Render --- */
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar
-        barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor={colors.background}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ padding: 16 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* --- STATUS CARD --- */}
+      <StatusCard
+        connectionStatus={connectionStatus}
+        connectedSystem={connectedSystem}
+        onRefresh={detectAndSyncDevice}
       />
-      <View style={styles.container}>
-        <StatusCard
-          connectionStatus={connectionStatus}
-          connectedSystem={connectedSystem}
-          onRefresh={handleConnectionAttempt}
-        />
 
-        {/* ConnectorCard has been removed */}
+      {/* --- DEVICE MANAGER --- */}
+      <View style={styles.sectionContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Device Manager</Text>
+          <Pressable onPress={detectAndSyncDevice}>
+            <MaterialCommunityIcons
+              name="refresh"
+              size={22}
+              color={colors.icon}
+            />
+          </Pressable>
+        </View>
 
-        <ManagerCard
-          pairedSystems={pairedSystems}
-          selectedSystemId={selectedSystemId}
-          // 👈 FIX 4: Removed isConnectDisabled prop
-          onSelectSystem={setSelectedSystemId}
-          onInfo={onInfoPress}
-          onRename={onRenamePress}
-          onForget={onForgetPress}
-        />
+        {loading ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : devices.length === 0 ? (
+          <Text style={styles.emptyText}>No devices found.</Text>
+        ) : (
+          <FlatList
+            data={devices}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+            renderItem={({ item }) => (
+              <View
+                style={[
+                  styles.deviceCard,
+                  {
+                    borderColor:
+                      connectedSystem?.id === item.id
+                        ? colors.primary
+                        : colors.border,
+                  },
+                ]}
+              >
+                <View>
+                  <Text style={styles.deviceName}>{item.name}</Text>
+                  <Text style={styles.deviceSub}>{item.ssid}</Text>
+                </View>
+                <Pressable onPress={() => handleDeleteDevice(item.id)}>
+                  <MaterialCommunityIcons
+                    name="delete-outline"
+                    size={22}
+                    color={colors.error}
+                  />
+                </Pressable>
+              </View>
+            )}
+          />
+        )}
       </View>
-
-      {/* Modals have been removed */}
-    </SafeAreaView>
+    </ScrollView>
   );
 }
 
-// --- STYLES ---
-const getStyles = (colors: typeof lightColors) =>
+/* --- THEME STYLES (Strictly Palette Based) --- */
+const getStyles = (colors: typeof lightColors, isDark: boolean) =>
   StyleSheet.create({
-    safeArea: {
+    container: {
       flex: 1,
       backgroundColor: colors.background,
     },
-    container: {
-      flex: 1,
-      padding: 16,
+    sectionContainer: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      shadowColor: colors.border,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.1 : 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingBottom: 8,
+      marginBottom: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    emptyText: {
+      textAlign: "center",
+      color: colors.textMuted,
+      fontSize: 14,
+      paddingVertical: 10,
+    },
+    deviceCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: colors.background,
+      borderRadius: 10,
+      padding: 10,
+      marginBottom: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+    },
+    deviceName: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    deviceSub: {
+      fontSize: 13,
+      color: colors.textMuted,
     },
   });
