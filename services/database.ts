@@ -3,12 +3,13 @@ import { openDatabaseAsync, SQLiteDatabase } from "expo-sqlite";
 
 /* --- Types --- */
 
-export type Device = {
-  id: string; // ❗️ This is now the Serial Code (e.g., "236EC30") - Primary Key
-  name: string; // User-friendly name (defaults to SSID)
-  ssid: string; // WiFi Network Name (e.g., "PE PRO 38B14")
-  modelCode?: string; // e.g., "38B14" (obtained after connection)
-};
+export interface Device {
+  id: string;
+  name: string;
+  ssid: string;
+  modelCode?: string;
+  [key: string]: any;
+}
 
 export type Preset = {
   id?: number;
