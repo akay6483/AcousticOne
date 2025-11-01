@@ -1,16 +1,14 @@
-import * as FileSystem from "expo-file-system";
+import { deleteAsync, documentDirectory } from "expo-file-system/legacy"; // 👈 UPDATED imports
 import { openDatabaseAsync, SQLiteDatabase } from "expo-sqlite";
 
 /* --- Types --- */
 
-// --- 👇 SIMPLIFIED DEVICE TYPE ---
 export type Device = {
   id: string; // BSSID (MAC Address) - Primary Key
   name: string; // User-friendly name (defaults to SSID)
   ssid: string; // WiFi Network Name
   modelCode?: string; // e.g., "38B14" (obtained after connection)
 };
-// --- END OF SIMPLIFICATION ---
 
 export type Preset = {
   id?: number;
@@ -35,35 +33,9 @@ export type Preset = {
   };
 };
 
-/* --- Mock data (Updated to match simplified type) --- */
-const MOCK_PAIRED_SYSTEMS: Device[] = [
-  {
-    id: "AA:BB:CC:DD:EE:01",
-    name: "Living Room Speaker",
-    ssid: "AcousticsOne-LR-5G",
-    modelCode: "38B14",
-  },
-  {
-    id: "AA:BB:CC:DD:EE:02",
-    name: "Bedroom Amp",
-    ssid: "AcousticsOne-BR-2.4G",
-    modelCode: "38B14",
-  },
-  {
-    id: "AA:BB:CC:DD:EE:03",
-    name: "Garage PA",
-    ssid: "AcousticsOne-GRG-5G",
-    modelCode: "38B14",
-  },
-  {
-    id: "AA:BB:CC:DD:EE:04",
-    name: "Basement System",
-    ssid: "AcousticsOne-BSMT-2.4G",
-    modelCode: "38B14",
-  },
-];
+// --- MOCK_PAIRED_SYSTEMS array removed ---
 
-// --- *** FIXED: FULL GTZAN PRESET LIST *** ---
+// --- GTZAN PRESET LIST ---
 const GTZAN_PRESETS: Omit<Preset, "id">[] = [
   // ... (GTZAN presets remain unchanged) ...
   {
@@ -295,16 +267,26 @@ type RunResult = {
   insertId?: number;
 };
 
-/* --- Clean slate (optional for development) --- */
+/* --- UPDATED resetDB FUNCTION --- */
 export const resetDB = async (): Promise<void> => {
-  const dbPath = `${FileSystem.documentDirectory}SQLite/acousticone.db`;
+  // Close the database connection if it's open
+  if (db) {
+    await db.closeAsync();
+    db = null;
+    _initPromise = null; // Reset init promise
+    console.log("Database connection closed for reset.");
+  }
+
+  const dbPath = `${documentDirectory}SQLite/acousticone.db`;
   try {
-    await FileSystem.deleteAsync(dbPath, { idempotent: true });
+    // Use the legacy deleteAsync
+    await deleteAsync(dbPath, { idempotent: true });
     console.log("🧹 Old database deleted successfully");
   } catch (err) {
     console.warn("⚠️ Error deleting database:", err);
   }
 };
+/* --- END OF UPDATE --- */
 
 /* --- Initialization --- */
 export const initDB = async (): Promise<void> => {
@@ -323,7 +305,6 @@ export const initDB = async (): Promise<void> => {
       );
     `);
 
-    // --- 👇 UPDATED DEVICES TABLE SCHEMA ---
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS devices (
         id TEXT PRIMARY KEY NOT NULL,
@@ -332,7 +313,6 @@ export const initDB = async (): Promise<void> => {
         modelCode TEXT
       );
     `);
-    // --- END OF UPDATE ---
 
     // Populate GTZAN presets if none exist
     try {
@@ -342,47 +322,27 @@ export const initDB = async (): Promise<void> => {
       );
       const count = presetCountRow?.count ?? 0;
       if (count === 0) {
-        console.log("Populating GTZAN presets..."); // Added log
+        console.log("Populating GTZAN presets...");
         for (const p of GTZAN_PRESETS) {
           await database.runAsync(
             "INSERT INTO presets (name, type, preset_values) VALUES (?, ?, ?);",
             [p.name, p.type, JSON.stringify(p.preset_values)]
           );
         }
-        console.log("GTZAN presets populated."); // Added log
+        console.log("GTZAN presets populated.");
       }
     } catch (err) {
       console.warn("initDB: error inserting GTZAN presets", err);
     }
 
-    // Populate mock devices if empty
-    try {
-      const deviceCountRow = await database.getFirstAsync<{ count: number }>(
-        "SELECT COUNT(*) as count FROM devices;"
-      );
-      const dcount = deviceCountRow?.count ?? 0;
-      if (dcount === 0) {
-        // --- 👇 UPDATED MOCK DEVICE INSERTION ---
-        for (const d of MOCK_PAIRED_SYSTEMS) {
-          await database.runAsync(
-            "INSERT INTO devices (id, name, ssid, modelCode) VALUES (?, ?, ?, ?);",
-            [d.id, d.name, d.ssid, d.modelCode ?? null]
-          );
-        }
-        // --- END OF UPDATE ---
-      }
-    } catch (err) {
-      console.warn("initDB: error inserting mock devices", err);
-    }
-
-    console.log("✅ Database initialized successfully");
+    // --- MOCK DEVICE INSERTION REMOVED ---
+    console.log("✅ Database initialized successfully (no mocks).");
   })();
 
   return _initPromise;
 };
 
 /* --- Preset functions (Unchanged) --- */
-
 export const getPresets = async (
   type: "gtzan" | "custom" | "all" = "all"
 ): Promise<Preset[]> => {
@@ -400,7 +360,6 @@ export const getPresets = async (
     preset_values: string;
   }>(query, params);
 
-  // Parse the JSON string for each row
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -448,10 +407,8 @@ export const getDevices = async (): Promise<Device[]> => {
   return rows;
 };
 
-// --- 👇 UPDATED addDevice ---
 export const addDevice = async (device: Device): Promise<RunResult> => {
   const database = await getDB();
-  // Only insert essential fields
   const res = (await database.runAsync(
     `INSERT INTO devices (id, name, ssid, modelCode)
      VALUES (?, ?, ?, ?);`,
@@ -459,7 +416,6 @@ export const addDevice = async (device: Device): Promise<RunResult> => {
   )) as unknown as RunResult;
   return res;
 };
-// --- END OF UPDATE ---
 
 export const deleteDevice = async (id: string): Promise<RunResult> => {
   const database = await getDB();
@@ -469,7 +425,6 @@ export const deleteDevice = async (id: string): Promise<RunResult> => {
   return res;
 };
 
-// --- 👇 NEW FUNCTION TO UPDATE modelCode ---
 export const updateDeviceModelCode = async (
   id: string,
   modelCode: string
@@ -481,7 +436,6 @@ export const updateDeviceModelCode = async (
   )) as unknown as RunResult;
   return res;
 };
-// --- END OF NEW FUNCTION ---
 
 export const updateDeviceName = async (
   id: string,

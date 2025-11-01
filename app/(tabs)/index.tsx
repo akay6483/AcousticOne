@@ -44,7 +44,7 @@ type ModalButtonProps = {
   icon: React.ReactNode;
 };
 
-// --- Reusable Sub-components (Refactored to use useTheme) ---
+// --- Reusable Sub-components (Unchanged) ---
 const SwitchControl: React.FC<SwitchControlProps> = ({
   label,
   value,
@@ -78,7 +78,7 @@ const ModalButton: React.FC<ModalButtonProps> = ({ label, onPress, icon }) => {
   );
 };
 
-// --- Main Screen Component (Refactored) ---
+// --- Main Screen Component (Unchanged) ---
 const ControlScreen: React.FC = () => {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getScreenStyles(colors), [colors]);
@@ -106,8 +106,7 @@ const ControlScreen: React.FC = () => {
   const openModal = (name: string) => setModalVisible(name);
   const closeModal = () => setModalVisible(null);
 
-  // --- *** FIXED applyPreset function *** ---
-  // It now uses `preset.preset_values` instead of `preset.values`
+  // --- Functions (Unchanged) ---
   const applyPreset = (preset: Preset) => {
     if (preset.preset_values) {
       setVolume(preset.preset_values.volume);
@@ -128,7 +127,6 @@ const ControlScreen: React.FC = () => {
     }
   };
 
-  // Updated to match new onClose prop type
   const handleClosePresetModal = (preset?: Preset) => {
     if (preset) {
       applyPreset(preset);
@@ -136,7 +134,6 @@ const ControlScreen: React.FC = () => {
     closeModal();
   };
 
-  // --- This object matches the `Preset["preset_values"]` type ---
   const currentSettings: Preset["preset_values"] = {
     volume,
     bass,
@@ -163,7 +160,7 @@ const ControlScreen: React.FC = () => {
         <SafeAreaView style={styles.safeArea}>
           <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
           <ScrollView contentContainerStyle={styles.mainScrollView}>
-            {/* --- BUTTONS SECTION --- */}
+            {/* --- BUTTONS SECTION (Unchanged) --- */}
             <ScrollView
               horizontal={true}
               showsHorizontalScrollIndicator={false}
@@ -207,7 +204,7 @@ const ControlScreen: React.FC = () => {
 
             <ModeSelector mode={mode} onModeChange={setMode} />
 
-            {/* --- KNOBS SECTION --- */}
+            {/* --- MODIFIED: KNOBS SECTION --- */}
             <View style={styles.knobsSection}>
               <View style={styles.knobRow}>
                 <Knob
@@ -215,12 +212,16 @@ const ControlScreen: React.FC = () => {
                   size={KNOB_SIZE}
                   value={volume}
                   onValueChange={setVolume}
+                  //dialBaseImage={require("../../assets/images/dial-base.png")}
+                  indicatorImage={require("../../assets/images/knob-indicator.png")}
                 />
                 <Knob
                   label="Treble"
                   size={KNOB_SIZE}
                   value={treble}
                   onValueChange={setTreble}
+                  //dialBaseImage={require("../../assets/images/dial-base.png")}
+                  indicatorImage={require("../../assets/images/dial-indicator-red.png")}
                 />
               </View>
               <View style={styles.knobRow}>
@@ -229,17 +230,21 @@ const ControlScreen: React.FC = () => {
                   size={KNOB_SIZE}
                   value={mid}
                   onValueChange={setMid}
+                  //dialBaseImage={require("../../assets/images/dial-base.png")}
+                  indicatorImage={require("../../assets/images/dial-indicator-green.png")}
                 />
                 <Knob
                   label="Bass"
                   size={KNOB_SIZE}
                   value={bass}
                   onValueChange={setBass}
+                  //dialBaseImage={require("../../assets/images/dial-base.png")}
+                  indicatorImage={require("../../assets/images/dial-indicator-blue.png")}
                 />
               </View>
             </View>
 
-            {/* --- SWITCHES SECTION --- */}
+            {/* --- SWITCHES SECTION (Unchanged) --- */}
             <View style={styles.switchesSection}>
               <SwitchControl
                 label="Prologic"
@@ -264,7 +269,7 @@ const ControlScreen: React.FC = () => {
             </View>
           </ScrollView>
 
-          {/* --- MODALS --- */}
+          {/* --- MODALS (Unchanged) --- */}
           <RemoteModal
             visible={modalVisible === "Remote"}
             onClose={closeModal}
@@ -298,8 +303,7 @@ const ControlScreen: React.FC = () => {
 
 export default ControlScreen;
 
-// --- STYLES ---
-// (Styles are unchanged)
+// --- STYLES (Unchanged) ---
 const getScreenStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     safeArea: {
