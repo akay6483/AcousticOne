@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const LAST_CONNECTED_ID_KEY = "LAST_CONNECTED_DEVICE_ID";
 
 /**
- * Stores the ID (BSSID) of the last successfully connected device.
+ * Stores the ID (Serial Code) of the last successfully connected device.
  */
 export const storeLastConnectedDeviceID = async (id: string) => {
   try {
@@ -14,7 +14,7 @@ export const storeLastConnectedDeviceID = async (id: string) => {
 };
 
 /**
- * Retrieves the ID (BSSID) of the last connected device.
+ * Retrieves the ID (Serial Code) of the last connected device.
  */
 export const getLastConnectedDeviceID = async (): Promise<string | null> => {
   try {
