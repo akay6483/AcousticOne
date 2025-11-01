@@ -5,13 +5,14 @@ import {
   FlatList,
   Pressable,
   SafeAreaView,
-  ScrollView, // ScrollView for Manager Buttons
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-// --- 👇 Import ScannedSystem type alongside the Modal ---
+// --- Import BOTH modals ---
+import { NetworkConnectModal } from "../../components/NetworkConnectModal";
 import {
   ScanAndPairModal,
   ScannedSystem,
@@ -19,24 +20,22 @@ import {
 import { useTheme } from "../../theme/ThemeContext";
 import { lightColors } from "../../theme/colors";
 
-// --- DATABASE IMPORTS (Import new update function) ---
+// --- DATABASE IMPORTS ---
 import {
-  Device, // Use the simplified Device type from database.ts
+  Device,
   addDevice,
   deleteDevice,
   getDevices,
   initDB,
-  updateDeviceModelCode, // 👈 New function
+  updateDeviceModelCode,
 } from "../../services/database";
 
 type ConnectionStatus = "connected" | "connecting" | "disconnected" | "error";
 
-// --- 👇 THIS IS YOUR NEW TEST/PRODUCTION SWITCH ---
-// Set to `null` to show ALL networks for testing
-// Set to ["AcousticsOne-", "PE PRO"] for production
-const SSID_PREFIX_FILTER: string[] | null = null;
+// --- Test/Production switch ---
+const SSID_PREFIX_FILTER: string[] | null = null; // null = Test Mode
 
-// --- REUSABLE BUTTON COMPONENT (Unchanged Functionally) ---
+// --- REUSABLE BUTTON COMPONENT (Unchanged) ---
 type ManagerButtonProps = {
   label: string;
   onPress: () => void;
@@ -79,14 +78,15 @@ export default function DeviceScreen() {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
 
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [pairedSystems, setPairedSystems] = useState<Device[]>([]); // Uses simplified Device type
-  const [connectedSystem, setConnectedSystem] = useState<Device | null>(null); // Uses simplified Device type
+  const [isDirectModalVisible, setIsDirectModalVisible] = useState(false);
+  const [isNetworkModalVisible, setIsNetworkModalVisible] = useState(false);
+
+  const [pairedSystems, setPairedSystems] = useState<Device[]>([]);
+  const [connectedSystem, setConnectedSystem] = useState<Device | null>(null);
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("disconnected");
-  const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null); // ID is now string (BSSID)
+  const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
 
-  // Memoized selected system based on string ID
   const selectedSystem = useMemo(
     () => pairedSystems.find((s) => s.id === selectedSystemId),
     [pairedSystems, selectedSystemId]
@@ -107,7 +107,6 @@ export default function DeviceScreen() {
         setConnectionStatus("disconnected");
         setSelectedSystemId(null);
       } else if (!selectedSystemId && devicesFromDB.length > 0) {
-        // Auto-select the first device if none is selected
         setSelectedSystemId(devicesFromDB[0].id);
       }
     } catch (error) {
@@ -115,20 +114,16 @@ export default function DeviceScreen() {
     }
   };
 
-  // --- 👇 Function to fetch Model Code (FIXED) ---
   const fetchModelCode = async (
     ipAddress: string
   ): Promise<string | undefined> => {
     try {
-      // This function calls the /getSerial/ endpoint of the ESP8266
       const response = await fetch(`http://${ipAddress}/getSerial/`);
-      const text = await response.text(); // Expected: "serial/MODEL_CODE/SERIAL_CODE/"
-
-      // Parse the response to find the model code
+      const text = await response.text();
       if (text.startsWith("serial/")) {
         const parts = text.split("/");
         if (parts.length >= 3) {
-          return parts[1]; // Return the model code (e.g., "38B14")
+          return parts[1];
         }
       }
     } catch (e) {
@@ -136,51 +131,33 @@ export default function DeviceScreen() {
     }
     return undefined;
   };
-  // --- END OF FIX ---
 
-  // --- 👇 Updated handleConnect ---
-  const handleConnect = async (system: Device) => {
-    console.log("Connecting to:", system.name);
+  // --- 👇 REFACTORED Connection Logic ---
+  const performConnection = async (
+    ipAddress: string
+  ): Promise<string | undefined> => {
     setConnectionStatus("connecting");
-    // TODO: Replace setTimeout with actual connection logic
-    // For Direct Connect, the IP is likely 192.168.4.1 (after WifiManager connects)
-    // For Network Connect, you'll need the IP from SSDP/UPnP discovery
-    const ipToUse = "192.168.4.1"; // Example for Direct Connect
-
     try {
-      // Simple check to see if device responds
-      const response = await fetch(`http://${ipToUse}/isthere/`); //
+      // 1. Check if device is responsive
+      const response = await fetch(`http://${ipAddress}/isthere/`);
       const text = await response.text(); // Expected: "YES/MODEL_CODE/"
 
       if (text.startsWith("YES/")) {
-        setConnectedSystem(system);
         setConnectionStatus("connected");
-
-        // --- Fetch and update modelCode if missing ---
-        if (!system.modelCode) {
-          const modelCode = await fetchModelCode(ipToUse);
-          if (modelCode) {
-            await updateDeviceModelCode(system.id, modelCode);
-            // Optionally reload devices or update state locally
-            setPairedSystems((prev) =>
-              prev.map((d) => (d.id === system.id ? { ...d, modelCode } : d))
-            );
-            setConnectedSystem((prev) =>
-              prev ? { ...prev, modelCode } : null
-            );
-          }
-        }
-        // --- End of modelCode fetch ---
+        // 2. Fetch and return model code
+        return await fetchModelCode(ipAddress);
       } else {
         throw new Error("Device did not respond correctly");
       }
     } catch (error) {
       console.error("Connection failed:", error);
       setConnectionStatus("error");
+      setConnectedSystem(null);
       Alert.alert("Connection Failed", "Could not connect to the device.");
     }
+    return undefined;
   };
-  // --- END OF UPDATE ---
+  // --- END OF REFACTOR ---
 
   const handleForget = (systemToForget: Device) => {
     Alert.alert(
@@ -201,7 +178,7 @@ export default function DeviceScreen() {
                 setSelectedSystemId(null);
               }
               await deleteDevice(systemToForget.id);
-              await loadDevices(); // Reload the list
+              await loadDevices();
             } catch (error) {
               console.error("Failed to forget device:", error);
             }
@@ -211,34 +188,80 @@ export default function DeviceScreen() {
     );
   };
 
-  // --- 👇 Updated handleAddNewSystem ---
+  // --- 👇 Updated to use performConnection ---
   const handleAddNewSystem = async (scannedSystem: ScannedSystem) => {
-    // Convert ScannedSystem to Device (modelCode is initially unknown)
-    const newDevice: Device = {
-      id: scannedSystem.id,
-      name: scannedSystem.name,
-      ssid: scannedSystem.ssid,
-      modelCode: undefined, // Will be fetched on first connect
-    };
+    setIsDirectModalVisible(false);
 
-    try {
-      await addDevice(newDevice);
-      await loadDevices(); // Reload devices from DB
-      setSelectedSystemId(newDevice.id); // Select the newly added device
-    } catch (error) {
-      console.error("Failed to add new system:", error);
-      Alert.alert("Error", "Failed to add new system. It may already exist.");
-    } finally {
-      setIsModalVisible(false);
+    // 1. Connect and get model code
+    const modelCode = await performConnection("192.168.4.1"); // Direct connect IP
+
+    if (modelCode) {
+      // 2. Create the full Device object
+      const newDevice: Device = {
+        id: scannedSystem.id,
+        name: scannedSystem.name,
+        ssid: scannedSystem.ssid,
+        modelCode: modelCode,
+      };
+
+      try {
+        // 3. Save to DB
+        await addDevice(newDevice);
+        await loadDevices();
+        setSelectedSystemId(newDevice.id);
+        // 4. Set as connected
+        setConnectedSystem(newDevice);
+      } catch (error) {
+        console.error("Failed to add new system:", error);
+        Alert.alert("Error", "Failed to add new system. It may already exist.");
+      }
     }
   };
   // --- END OF UPDATE ---
 
-  const onConnectPress = () => {
-    if (selectedSystem) {
-      handleConnect(selectedSystem);
+  // --- 👇 Updated to use performConnection ---
+  const handleNetworkConnect = async (ipAddress: string, name: string) => {
+    setIsNetworkModalVisible(false);
+
+    // 1. Connect and get model code
+    const modelCode = await performConnection(ipAddress);
+
+    if (modelCode) {
+      // 2. Set as connected (as a temporary system, not saved to DB)
+      setConnectedSystem({
+        id: ipAddress, // Use IP as the ID for this session
+        name: name,
+        ssid: "Network",
+        modelCode: modelCode,
+      });
     }
   };
+  // --- END OF UPDATE ---
+
+  // --- 👇 Updated to use performConnection ---
+  const onConnectPress = async () => {
+    if (selectedSystem) {
+      // TODO: This logic needs to be smarter.
+      // 1. Check current WiFi SSID.
+      // 2. If current SSID === selectedSystem.ssid, use IP "192.168.4.1".
+      // 3. If not, trigger SSDP scan to find the IP for selectedSystem.id.
+      // 4. For now, we assume Direct Connect IP.
+      const ipToUse = "192.168.4.1";
+
+      const modelCode = await performConnection(selectedSystem, ipToUse);
+
+      if (modelCode) {
+        // 5. Set as connected
+        setConnectedSystem({ ...selectedSystem, modelCode });
+        // 6. Update DB if model code was missing
+        if (!selectedSystem.modelCode) {
+          await updateDeviceModelCode(selectedSystem.id, modelCode);
+          await loadDevices(); // Refresh list
+        }
+      }
+    }
+  };
+  // --- END OF UPDATE ---
 
   const onForgetPress = () => {
     if (selectedSystem) {
@@ -248,20 +271,17 @@ export default function DeviceScreen() {
 
   const onInfoPress = () => {
     if (selectedSystem) {
-      // --- 👇 Updated Info Alert ---
       Alert.alert(
         "Device Info",
         `Name: ${selectedSystem.name}\nSSID: ${selectedSystem.ssid}\nID: ${
           selectedSystem.id
         }\nModel: ${selectedSystem.modelCode ?? "Unknown"}`
       );
-      // --- END OF UPDATE ---
     }
   };
 
   const onRenamePress = () => {
     if (selectedSystem) {
-      // Basic rename prompt
       Alert.prompt(
         "Rename Device",
         "Enter a new name:",
@@ -272,8 +292,8 @@ export default function DeviceScreen() {
             newName !== selectedSystem.name
           ) {
             try {
-              // await updateDeviceName(selectedSystem.id, newName.trim()); // Assumes you have this DB function
-              await loadDevices(); // Reload to show the new name
+              // await updateDeviceName(selectedSystem.id, newName.trim());
+              await loadDevices();
             } catch (error) {
               console.error("Failed to rename device:", error);
               Alert.alert("Error", "Could not rename device.");
@@ -288,8 +308,8 @@ export default function DeviceScreen() {
 
   // --- RENDER SUB-COMPONENTS ---
   const renderStatusSection = () => {
+    // ... (No changes here, it will work as is) ...
     if (connectionStatus === "connecting") {
-      // --- CONNECTING STATE ---
       return (
         <View style={styles.statusContent}>
           <Text style={styles.statusEmptyText}>Connecting...</Text>
@@ -297,7 +317,6 @@ export default function DeviceScreen() {
       );
     }
     if (connectionStatus === "connected" && connectedSystem) {
-      // --- CONNECTED STATE (Show Model Code) ---
       return (
         <View style={styles.statusContent}>
           <View style={styles.statusImagePlaceholder}>
@@ -312,14 +331,12 @@ export default function DeviceScreen() {
                 color={colors.primary}
               />
             </View>
-            {/* --- 👇 Display Model Code --- */}
             <View style={styles.statusInfoRow}>
               <Text style={styles.statusLabel}>Model :</Text>
               <Text style={styles.statusValue}>
                 {connectedSystem.modelCode ?? "Loading..."}
               </Text>
             </View>
-            {/* --- END OF UPDATE --- */}
             <View style={styles.statusInfoRow}>
               <Text style={styles.statusLabel}>SSID :</Text>
               <Text style={styles.statusValue}>{connectedSystem.ssid}</Text>
@@ -340,10 +357,10 @@ export default function DeviceScreen() {
           {connectionStatus === "error"
             ? "Connection failed. Please check device and network."
             : "No device connected. Tap "}
-          {connectionStatus !== "error" && ( // Only show link if not in error state
+          {connectionStatus !== "error" && (
             <Text
               style={styles.addTextLink}
-              onPress={() => setIsModalVisible(true)}
+              onPress={() => setIsDirectModalVisible(true)}
             >
               add(+)
             </Text>
@@ -355,7 +372,7 @@ export default function DeviceScreen() {
   };
 
   const renderDeviceListItem = ({ item }: { item: Device }) => {
-    // Uses simplified Device type
+    // ... (No changes here, it will work as is) ...
     const isSelected = item.id === selectedSystemId;
     return (
       <Pressable
@@ -371,11 +388,9 @@ export default function DeviceScreen() {
           >
             {item.name}
           </Text>
-          {/* --- 👇 Show Model Code if available --- */}
           <Text style={styles.deviceSsid}>
             {item.ssid} {item.modelCode ? `(${item.modelCode})` : ""}
           </Text>
-          {/* --- END OF UPDATE --- */}
         </View>
         {isSelected && (
           <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
@@ -401,7 +416,7 @@ export default function DeviceScreen() {
           {renderStatusSection()}
         </View>
 
-        {/* Connector Section */}
+        {/* --- Connector Section UPDATED --- */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Connector</Text>
@@ -414,19 +429,19 @@ export default function DeviceScreen() {
           <View style={styles.buttonRow}>
             <Pressable
               style={styles.connectorButton}
-              onPress={() => setIsModalVisible(true)} // Opens ScanAndPairModal
+              onPress={() => setIsDirectModalVisible(true)} // Opens ScanAndPairModal
             >
               <Text style={styles.connectorButtonText}>Direct Connect</Text>
             </Pressable>
             <Pressable
               style={styles.connectorButton}
-              // TODO: onPress={() => { /* Implement Network Connect (SSDP) */ }}
-              disabled // Disable until SSDP is implemented
+              onPress={() => setIsNetworkModalVisible(true)} // 👈 Opens new modal
             >
               <Text style={styles.connectorButtonText}>Network Connect</Text>
             </Pressable>
           </View>
         </View>
+        {/* --- END OF UPDATE --- */}
 
         {/* Manager Section */}
         <View style={[styles.sectionContainer, styles.managerSection]}>
@@ -473,7 +488,7 @@ export default function DeviceScreen() {
           <FlatList
             data={pairedSystems}
             renderItem={renderDeviceListItem}
-            keyExtractor={(item) => item.id} // ID is now string
+            keyExtractor={(item) => item.id}
             ListEmptyComponent={
               <View style={styles.emptyListContainer}>
                 <Text style={styles.emptyListText}>No paired devices.</Text>
@@ -486,13 +501,20 @@ export default function DeviceScreen() {
         </View>
       </View>
 
-      {/* --- 👇 SCANNING MODAL (passing new prop) --- */}
+      {/* --- SCANNING MODAL --- */}
       <ScanAndPairModal
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
+        visible={isDirectModalVisible}
+        onClose={() => setIsDirectModalVisible(false)}
         onPairSuccess={handleAddNewSystem}
-        pairedSystemIds={pairedSystems.map((s) => s.id)} // Pass BSSIDs of paired systems
+        pairedSystemIds={pairedSystems.map((s) => s.id)}
         ssidPrefixes={SSID_PREFIX_FILTER}
+      />
+
+      {/* --- NEW NETWORK MODAL --- */}
+      <NetworkConnectModal
+        visible={isNetworkModalVisible}
+        onClose={() => setIsNetworkModalVisible(false)}
+        onConnectPress={handleNetworkConnect}
       />
     </SafeAreaView>
   );
@@ -519,7 +541,7 @@ const getManagerButtonStyles = (colors: typeof lightColors) =>
       marginLeft: 6,
     },
     disabledButton: {
-      backgroundColor: colors.background, // Make disabled look different
+      backgroundColor: colors.background,
       opacity: 0.6,
     },
   });
@@ -539,9 +561,8 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       borderRadius: 12,
       padding: 12,
       marginBottom: 12,
-      borderWidth: StyleSheet.hairlineWidth, // Use Hairline for subtlety
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-      // Add subtle shadow for depth
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: isDark ? 0.1 : 0.05,
@@ -560,7 +581,7 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       justifyContent: "space-between",
       paddingBottom: 8,
       marginBottom: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth, // Use Hairline
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
     sectionTitle: {
@@ -568,21 +589,19 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       fontWeight: "600",
       color: colors.text,
     },
-    // --- Status Section Styles ---
     statusContent: {
       flexDirection: "row",
       paddingVertical: 4,
       minHeight: 70,
       alignItems: "center",
-      // Add padding if needed when content is present
       paddingHorizontal: 4,
     },
     statusEmptyText: {
-      flex: 1, // Allow text to wrap
+      flex: 1,
       fontSize: 16,
       color: colors.textMuted,
       lineHeight: 22,
-      textAlign: "center", // Center empty text
+      textAlign: "center",
     },
     addTextLink: {
       color: colors.primary,
@@ -596,7 +615,7 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       alignItems: "center",
       justifyContent: "center",
       marginRight: 10,
-      borderWidth: StyleSheet.hairlineWidth, // Use Hairline
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
     },
     statusInfoContainer: {
@@ -618,10 +637,9 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       fontSize: 14,
       color: colors.text,
       fontWeight: "600",
-      flexShrink: 1, // Allow text to shrink if needed
-      textAlign: "right", // Align value to the right
+      flexShrink: 1,
+      textAlign: "right",
     },
-    // --- Connector Button Styles ---
     buttonRow: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -636,7 +654,7 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       paddingVertical: 10,
       paddingHorizontal: 10,
       borderRadius: 8,
-      borderWidth: StyleSheet.hairlineWidth, // Use Hairline
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
     },
     connectorButtonText: {
@@ -645,13 +663,11 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       fontSize: 13,
       textAlign: "center",
     },
-    // --- Manager Button ScrollView Style ---
     buttonsScrollView: {
       flexDirection: "row",
       alignItems: "center",
       marginBottom: 12,
     },
-    // --- Device List Styles ---
     deviceListItem: {
       flexDirection: "row",
       alignItems: "center",
@@ -660,17 +676,16 @@ const getStyles = (colors: typeof lightColors, isDark: boolean) =>
       paddingHorizontal: 12,
       borderRadius: 8,
       marginBottom: 4,
-      borderWidth: 1, // Keep border for selection indicator
-      borderColor: "transparent", // Default to transparent
-      backgroundColor: colors.background, // Give items a background
+      borderWidth: 1,
+      borderColor: "transparent",
+      backgroundColor: colors.background,
     },
     deviceListItemSelected: {
-      // backgroundColor: colors.background, // Already has background
-      borderColor: colors.primary, // Highlight border when selected
+      borderColor: colors.primary,
     },
     deviceListInfo: {
       flex: 1,
-      marginRight: 8, // Add spacing before checkmark
+      marginRight: 8,
       gap: 2,
     },
     deviceName: {
