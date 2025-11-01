@@ -7,9 +7,8 @@ import {
   Modal,
   PermissionsAndroid,
   Platform,
-  Pressable, // 👈 Switch removed, Pressable kept
+  Pressable,
   StyleSheet,
-  // Switch, // 👈 Removed
   Text,
   View,
 } from "react-native";
@@ -18,21 +17,20 @@ import WifiManager, { WifiEntry } from "react-native-wifi-reborn";
 import { useTheme } from "../theme/ThemeContext";
 import { lightColors } from "../theme/colors";
 
-// --- UPDATED TYPE DEFINITION (matches simplified Device, without modelCode) ---
+// --- TYPE DEFINITION ---
 export type ScannedSystem = {
   id: string; // BSSID (MAC Address)
   name: string; // User-friendly name (SSID initially)
   ssid: string; // Network SSID
 };
-// --- END OF UPDATE ---
 
-// --- MODAL COMPONENT (UC-01: Wireless Connect) ---
+// --- MODAL COMPONENT ---
 interface ScanModalProps {
   visible: boolean;
   onClose: () => void;
-  onPairSuccess: (system: ScannedSystem) => void; // Uses the updated type
+  onPairSuccess: (system: ScannedSystem) => void;
   pairedSystemIds: string[];
-  ssidPrefixes: string[] | null; // 👈 New prop for filtering
+  ssidPrefixes: string[] | null;
 }
 
 export const ScanAndPairModal: React.FC<ScanModalProps> = ({
@@ -40,21 +38,18 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
   onClose,
   onPairSuccess,
   pairedSystemIds,
-  ssidPrefixes, // 👈 Destructure the new prop
+  ssidPrefixes,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getModalStyles(colors), [colors, isDark]);
 
   const [isScanning, setIsScanning] = useState(false);
-  const [availableSystems, setAvailableSystems] = useState<ScannedSystem[]>([]); // Uses updated type
+  const [availableSystems, setAvailableSystems] = useState<ScannedSystem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [connectingSystemId, setConnectingSystemId] = useState<string | null>(
     null
   );
 
-  /**
-   * Clears state when the modal is closed.
-   */
   useEffect(() => {
     if (!visible) {
       setIsScanning(false);
@@ -64,9 +59,6 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
     }
   }, [visible]);
 
-  /**
-   * Requests Android location permissions, required for WiFi scanning.
-   */
   const requestLocationPermission = async (): Promise<boolean> => {
     if (Platform.OS === "android") {
       try {
@@ -85,17 +77,12 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
         return false;
       }
     }
-    return true; // iOS doesn't require this
+    return true;
   };
 
-  /**
-   * Scans for WiFi networks, filters for amplifier systems, and updates state.
-   */
   const handleScan = useCallback(
     async (scanEnabled: boolean) => {
-      // This function is now only called with `true`
       if (!scanEnabled) {
-        // Clear list if scan is "cancelled" (though not used)
         setIsScanning(false);
         setAvailableSystems([]);
         setError(null);
@@ -106,7 +93,6 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
       setError(null);
       setAvailableSystems([]);
 
-      // 1. Check permissions
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
         setError("Location permission is required to scan for networks.");
@@ -114,33 +100,52 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
         return;
       }
 
-      // 2. Load WiFi list
       try {
-        const wifiList: WifiEntry[] = await WifiManager.loadWifiList();
+        const wifiListResult: WifiEntry[] | unknown =
+          await WifiManager.reScanAndLoadWifiList();
 
-        // --- UPDATED FILTER LOGIC ---
+        // --- 👇 CRITICAL BUG FIX (More Robust) ---
+        // Check if the result is actually an array before filtering
+        if (!Array.isArray(wifiListResult)) {
+          // Check if it's the Android throttle error
+          if (
+            typeof wifiListResult === "string" &&
+            wifiListResult.includes("4 times per 2 minuts")
+          ) {
+            console.error("Android WiFi scan throttled:", wifiListResult);
+            throw new Error(
+              "Android scan limit reached. Please wait 2 minutes."
+            );
+          }
+          // Otherwise, it's some other invalid data
+          console.error("wifiListResult is not an array:", wifiListResult);
+          throw new Error("Invalid data received from WiFi scan.");
+        }
+        // --- END OF BUG FIX ---
+
+        const wifiList: WifiEntry[] = wifiListResult as WifiEntry[]; // Now safe to use
+
         const newSystems = wifiList
           .filter((entry) => {
-            // 1. Prefix Check
             const hasMatchingPrefix =
-              ssidPrefixes === null // Test mode: show all
+              ssidPrefixes === null
                 ? true
-                : ssidPrefixes.some(
-                    (
-                      prefix // Production mode: check list
-                    ) => entry.SSID.startsWith(prefix)
-                  );
+                : ssidPrefixes.some((prefix) => entry.SSID.startsWith(prefix));
 
-            // 2. Paired Check (Same as before)
+            const isHiddenSSID =
+              entry.SSID === "(hidden SSID)" || entry.SSID === "";
+
+            if (ssidPrefixes === null && isHiddenSSID) {
+              return !pairedSystemIds.includes(entry.BSSID);
+            }
+
             const isAlreadyPaired = pairedSystemIds.includes(entry.BSSID);
-
-            return hasMatchingPrefix && !isAlreadyPaired;
+            return hasMatchingPrefix && !isAlreadyPaired && !isHiddenSSID;
           })
-          // --- END OF UPDATE ---
           .map(
             (entry): ScannedSystem => ({
               id: entry.BSSID,
-              name: entry.SSID, // Default name to SSID
+              name: entry.SSID,
               ssid: entry.SSID,
             })
           );
@@ -158,42 +163,40 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
         setIsScanning(false);
       }
     },
-    [pairedSystemIds, ssidPrefixes] // 👈 Add new dependency
+    [pairedSystemIds, ssidPrefixes]
   );
 
-  // --- 👇 NEW: Scan automatically when modal opens ---
   useEffect(() => {
     if (visible) {
       handleScan(true);
     }
-  }, [visible, handleScan]); // Run when modal becomes visible
+  }, [visible, handleScan]);
 
-  /**
-   * Attempts to connect to the selected system.
-   * This logic remains the same and will work for test networks.
-   */
   const handleSelectSystem = (system: ScannedSystem) => {
-    if (connectingSystemId) return; // Already connecting
+    if (connectingSystemId) return;
 
     const connect = async (password: string) => {
       setConnectingSystemId(system.id);
       try {
-        // Attempt to connect.
+        // 1. Attempt to connect
         await WifiManager.connectToProtectedSSID(
           system.ssid,
           password,
           false // isWEP
         );
 
-        // --- Android "No Internet" Handling ---
+        // 2. Force usage for Android (no internet)
         if (Platform.OS === "android") {
           await WifiManager.forceWifiUsageWithOptions(true, {
             noInternet: true,
           });
         }
 
+        // 3. Alert user
         Alert.alert("Success", `Successfully connected to ${system.name}.`);
-        onPairSuccess(system); // Send simplified system back to device.tsx
+
+        // 4. Call onPairSuccess to trigger save in device.tsx
+        onPairSuccess(system);
       } catch (err: any) {
         console.error("Failed to connect:", err);
         Alert.alert(
@@ -205,7 +208,6 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
       }
     };
 
-    // --- Password Prompt ---
     Alert.prompt(
       "Enter Password",
       `Enter the password for ${system.name}\n(Default: "PrasadDigital")`,
@@ -214,19 +216,16 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
         {
           text: "Connect",
           onPress: (password) => {
-            // Use default password if user submits empty string
             connect(password || "PrasadDigital");
           },
         },
       ],
-      Platform.OS === "ios" ? "secure-text" : "plain-text", // Use secure-text on iOS
-      "PrasadDigital" // Default value from your .ino file
+      Platform.OS === "ios" ? "secure-text" : "plain-text",
+      "PrasadDigital"
     );
   };
 
-  // --- Render logic (no changes) ---
   const renderEmptyState = () => {
-    // ... (no changes needed here) ...
     if (isScanning) {
       return (
         <View style={styles.emptyListContainer}>
@@ -249,7 +248,7 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
     return (
       <View style={styles.emptyListContainer}>
         <Text style={[styles.emptyListText, { color: colors.textMuted }]}>
-          Toggle the switch to scan for systems.
+          No networks found. Ensure the device is on.
         </Text>
       </View>
     );
@@ -264,7 +263,6 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-          {/* --- 👇 HEADER UPDATED --- */}
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
               Connect
@@ -289,16 +287,7 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
               )}
             </Pressable>
           </View>
-          {/* --- 👆 END OF HEADER UPDATE --- */}
 
-          {/* --- 👇 SUBTITLE REMOVED --- */}
-          {/* <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
-            Available PA Systems nearby
-          </Text> 
-          */}
-          {/* --- 👆 END OF REMOVAL --- */}
-
-          {/* Device List */}
           <FlatList
             data={availableSystems}
             keyExtractor={(item) => item.id}
@@ -328,7 +317,6 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
                     >
                       {item.name}
                     </Text>
-                    {/* --- Display BSSID (id) instead of serial --- */}
                     <Text style={styles.deviceItemSubText}>{item.id}</Text>
                   </View>
                   {isConnecting ? (
@@ -345,7 +333,6 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
             }}
           />
 
-          {/* Footer Button */}
           <Pressable
             style={[styles.modalButton, { backgroundColor: colors.background }]}
             onPress={onClose}
@@ -360,10 +347,9 @@ export const ScanAndPairModal: React.FC<ScanModalProps> = ({
   );
 };
 
-// --- STYLESHEET (Updated) ---
+// --- STYLESHEET (Unchanged) ---
 const getModalStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
-    // Modal Styles
     modalOverlay: {
       flex: 1,
       justifyContent: "flex-end",
@@ -373,32 +359,25 @@ const getModalStyles = (colors: typeof lightColors) =>
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 16,
-      paddingBottom: 32, // Extra padding for home bar
-      height: "80%", // Keep 80% height
+      paddingBottom: 32,
+      height: "80%",
     },
     modalHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       paddingHorizontal: 8,
-      marginBottom: 12, // 👈 Added margin to replace subtitle
+      marginBottom: 12,
     },
     modalTitle: {
       fontSize: 22,
       fontWeight: "bold",
     },
-    // --- 👇 REFRESH BUTTON STYLE ---
     refreshButton: {
-      padding: 4, // Hitbox
+      padding: 4,
       justifyContent: "center",
       alignItems: "center",
     },
-    // --- 👆 END OF NEW STYLE ---
-    // --- 👇 SUBTITLE REMOVED ---
-    // modalSubtitle: { ... },
-    // --- 👆 END OF REMOVAL ---
-
-    // MIUI-inspired styles
     deviceItem: {
       flexDirection: "row",
       alignItems: "center",
@@ -430,7 +409,6 @@ const getModalStyles = (colors: typeof lightColors) =>
       color: colors.textMuted,
       marginTop: 2,
     },
-    // ---
     emptyListContainer: {
       padding: 20,
       alignItems: "center",
