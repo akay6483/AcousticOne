@@ -6,7 +6,7 @@ import { ActivityIndicator, Image, View } from "react-native";
 import { initDB } from "../services/database"; //adjust import path to your db file
 import { ThemeProvider, useTheme } from "../theme/ThemeContext";
 
-import { resetDB } from "../services/database";
+//import { resetDB } from "../services/database";
 // LogoTitle using theme
 function LogoTitle() {
   const { isDark } = useTheme();
@@ -91,7 +91,7 @@ export default function RootLayout() {
   useEffect(() => {
     const setupDB = async () => {
       try {
-        await resetDB(); // 👈 reset your database if needed
+        //await resetDB(); // 👈 reset your database if needed
         await initDB(); // 👈 initialize your database before UI loads
         setDbReady(true);
       } catch (err) {

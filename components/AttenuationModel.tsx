@@ -32,8 +32,6 @@ interface AttenuationModalProps {
 }
 
 // --- Local theme REMOVED ---
-// const theme = { ... };
-
 const { width } = Dimensions.get("window");
 
 export const AttenuationModal: React.FC<AttenuationModalProps> = ({
@@ -67,7 +65,7 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalBody}>
-            {/* Header Section */}
+            {/* Header Section (Unchanged) */}
             <View style={styles.header}>
               <MaterialIcons
                 name="speaker"
@@ -81,43 +79,55 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
               </Pressable>
             </View>
 
-            {/* Knobs Grid (no change) */}
+            {/* --- MODIFIED: Knobs Grid --- */}
             <View style={styles.gridContainer}>
               <Knob
                 label="Front Left"
                 size={KNOB_SIZE}
                 value={frontLeft}
                 onValueChange={setFrontLeft}
+                //dialBaseImage={require("../assets/images/dial-base.png")}
+                indicatorImage={require("../assets/images/dial-indicator-green.png")}
               />
               <Knob
                 label="Front Right"
                 size={KNOB_SIZE}
                 value={frontRight}
                 onValueChange={setFrontRight}
+                //dialBaseImage={require("../assets/images/dial-base.png")}
+                indicatorImage={require("../assets/images/dial-indicator-green.png")}
               />
               <Knob
                 label="Subwoofer"
                 size={KNOB_SIZE}
                 value={subwoofer}
                 onValueChange={setSubwoofer}
+                //dialBaseImage={require("../assets/images/dial-base.png")}
+                indicatorImage={require("../assets/images/dial-indicator-red.png")}
               />
               <Knob
                 label="Center"
                 size={KNOB_SIZE}
                 value={center}
                 onValueChange={setCenter}
+                //dialBaseImage={require("../assets/images/dial-base.png")}
+                indicatorImage={require("../assets/images/knob-indicator.png")}
               />
               <Knob
                 label="Rear Left"
                 size={KNOB_SIZE}
                 value={rearLeft}
                 onValueChange={setRearLeft}
+                //dialBaseImage={require("../assets/images/dial-base.png")}
+                indicatorImage={require("../assets/images/dial-indicator-blue.png")}
               />
               <Knob
                 label="Rear Right"
                 size={KNOB_SIZE}
                 value={rearRight}
                 onValueChange={setRearRight}
+                //dialBaseImage={require("../assets/images/dial-base.png")}
+                indicatorImage={require("../assets/images/dial-indicator-blue.png")}
               />
             </View>
           </View>
@@ -127,7 +137,7 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
   );
 };
 
-// --- Style factory function ---
+// --- Style factory function (Unchanged) ---
 const getStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     modalContainer: {
