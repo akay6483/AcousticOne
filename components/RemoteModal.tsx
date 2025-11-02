@@ -140,7 +140,6 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
                     color={colors.remoteButtonText} // Use theme color
                   />
                 }
-                F
               />
 
               {/* Row 2 */}

@@ -86,7 +86,7 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
                 size={KNOB_SIZE}
                 value={frontLeft}
                 onValueChange={setFrontLeft}
-                //dialBaseImage={require("../assets/images/dial-base.png")}
+                dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-green.png")}
               />
               <Knob
@@ -94,31 +94,28 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
                 size={KNOB_SIZE}
                 value={frontRight}
                 onValueChange={setFrontRight}
-                //dialBaseImage={require("../assets/images/dial-base.png")}
+                dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-green.png")}
               />
-              <Knob
-                label="Subwoofer"
-                size={KNOB_SIZE}
-                value={subwoofer}
-                onValueChange={setSubwoofer}
-                //dialBaseImage={require("../assets/images/dial-base.png")}
-                indicatorImage={require("../assets/images/dial-indicator-red.png")}
-              />
+            </View>
+
+            <View style={styles.gridContainer}>
               <Knob
                 label="Center"
                 size={KNOB_SIZE}
                 value={center}
                 onValueChange={setCenter}
-                //dialBaseImage={require("../assets/images/dial-base.png")}
+                dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/knob-indicator.png")}
               />
+            </View>
+            <View style={styles.gridContainer}>
               <Knob
                 label="Rear Left"
                 size={KNOB_SIZE}
                 value={rearLeft}
                 onValueChange={setRearLeft}
-                //dialBaseImage={require("../assets/images/dial-base.png")}
+                dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-blue.png")}
               />
               <Knob
@@ -126,7 +123,7 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
                 size={KNOB_SIZE}
                 value={rearRight}
                 onValueChange={setRearRight}
-                //dialBaseImage={require("../assets/images/dial-base.png")}
+                dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-blue.png")}
               />
             </View>
