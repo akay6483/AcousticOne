@@ -152,7 +152,9 @@ const ControlScreen: React.FC = () => {
     mode,
   };
 
-  const KNOB_SIZE = width * 0.4;
+  // --- 1. MODIFIED: KNOB SIZES ---
+  const LARGE_KNOB_SIZE = width * 0.35; // For the main Volume knob
+  const SMALL_KNOB_SIZE = width * 0.25; // For Bass, Treble, Mid
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -204,53 +206,60 @@ const ControlScreen: React.FC = () => {
 
             <ModeSelector mode={mode} onModeChange={setMode} />
 
-            {/* --- MODIFIED: KNOBS SECTION --- */}
+            {/* --- 2. MODIFIED: KNOBS SECTION (1-2-1 Layout) --- */}
             <View style={styles.knobsSection}>
-              <View style={styles.knobRow}>
+              {/* Row 1: Large Volume Knob (Centered) */}
+              <View style={styles.knobRowCenter}>
                 <Knob
                   label="Volume"
-                  size={KNOB_SIZE}
+                  size={LARGE_KNOB_SIZE}
                   value={volume}
                   onValueChange={setVolume}
-                  //dialBaseImage={require("../../assets/images/dial-base.png")}
+                  dialBaseImage={require("../../assets/images/dial-base.png")}
                   indicatorImage={require("../../assets/images/knob-indicator.png")}
                 />
-                <Knob
-                  label="Treble"
-                  size={KNOB_SIZE}
-                  value={treble}
-                  onValueChange={setTreble}
-                  //dialBaseImage={require("../../assets/images/dial-base.png")}
-                  indicatorImage={require("../../assets/images/dial-indicator-red.png")}
-                />
               </View>
-              <View style={styles.knobRow}>
+
+              {/* Row 2: Two Smaller Knobs (Apart) */}
+              <View style={styles.knobRowApart}>
+                <View>
+                  <Knob
+                    label="Bass"
+                    size={SMALL_KNOB_SIZE}
+                    value={bass}
+                    onValueChange={setBass}
+                    dialBaseImage={require("../../assets/images/dial-base.png")}
+                    indicatorImage={require("../../assets/images/dial-indicator-blue.png")}
+                  />
+                </View>
+
+                <View style={styles.knobRowRight}>
+                  <Knob
+                    label="Treble"
+                    size={SMALL_KNOB_SIZE}
+                    value={treble}
+                    onValueChange={setTreble}
+                    dialBaseImage={require("../../assets/images/dial-base.png")}
+                    indicatorImage={require("../../assets/images/dial-indicator-red.png")}
+                  />
+                </View>
+              </View>
+
+              {/* Row 3: One Smaller Knob (Centered) */}
+              <View style={styles.knobRowBottom}>
                 <Knob
                   label="Mid"
-                  size={KNOB_SIZE}
+                  size={SMALL_KNOB_SIZE}
                   value={mid}
                   onValueChange={setMid}
-                  //dialBaseImage={require("../../assets/images/dial-base.png")}
+                  dialBaseImage={require("../../assets/images/dial-base.png")}
                   indicatorImage={require("../../assets/images/dial-indicator-green.png")}
-                />
-                <Knob
-                  label="Bass"
-                  size={KNOB_SIZE}
-                  value={bass}
-                  onValueChange={setBass}
-                  //dialBaseImage={require("../../assets/images/dial-base.png")}
-                  indicatorImage={require("../../assets/images/dial-indicator-blue.png")}
                 />
               </View>
             </View>
 
             {/* --- SWITCHES SECTION (Unchanged) --- */}
             <View style={styles.switchesSection}>
-              <SwitchControl
-                label="Prologic"
-                value={prologic}
-                onValueChange={setPrologic}
-              />
               <SwitchControl
                 label="Tone"
                 value={tone}
@@ -260,11 +269,6 @@ const ControlScreen: React.FC = () => {
                 label="Surround Enhance"
                 value={surround}
                 onValueChange={setSurround}
-              />
-              <SwitchControl
-                label="Mixed Channel"
-                value={mixed}
-                onValueChange={setMixed}
               />
             </View>
           </ScrollView>
@@ -303,7 +307,7 @@ const ControlScreen: React.FC = () => {
 
 export default ControlScreen;
 
-// --- STYLES (Unchanged) ---
+// --- 3. MODIFIED: STYLES ---
 const getScreenStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     safeArea: {
@@ -321,17 +325,39 @@ const getScreenStyles = (colors: typeof lightColors) =>
       marginBottom: 20,
     },
     knobsSection: {
-      paddingVertical: 10,
+      paddingVertical: 15, // Increased padding for larger knobs
       backgroundColor: colors.card,
       marginHorizontal: 16,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    knobRow: {
+    // Style for rows with two knobs, spaced apart
+    knobRowApart: {
       flexDirection: "row",
-      justifyContent: "space-evenly",
       alignItems: "center",
+      width: "100%",
+    },
+    knobRowRight: {
+      justifyContent: "flex-end", // Use space-around for better spacing
+      alignItems: "center",
+      width: "100%",
+    },
+
+    // Style for rows with one knob, centered
+    knobRowCenter: {
+      flexDirection: "row",
+      justifyContent: "center",
+      //alignItems: "center",
+      width: "100%",
+      paddingVertical: 0, // Add some vertical padding
+    },
+    knobRowBottom: {
+      flexDirection: "column",
+      justifyContent: "flex-start",
+      alignItems: "center",
+      width: "100%",
+      paddingVertical: -20, // Add some vertical padding
     },
     switchesSection: {
       flexDirection: "row",

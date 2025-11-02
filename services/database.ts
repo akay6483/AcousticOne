@@ -3,14 +3,6 @@ import { openDatabaseAsync, SQLiteDatabase } from "expo-sqlite";
 
 /* --- Types --- */
 
-export interface Device {
-  id: string;
-  name: string;
-  ssid: string;
-  modelCode?: string;
-  [key: string]: any;
-}
-
 export type Preset = {
   id?: number;
   name: string;
@@ -389,55 +381,5 @@ export const deletePreset = async (id: number): Promise<RunResult> => {
   const res = (await database.runAsync("DELETE FROM presets WHERE id = ?;", [
     id,
   ])) as unknown as RunResult;
-  return res;
-};
-
-/* --- Device functions (Unchanged, but 'id' is now Serial Code) --- */
-
-export const getDevices = async (): Promise<Device[]> => {
-  const database = await getDB();
-  const rows = await database.getAllAsync<Device>("SELECT * FROM devices;");
-  return rows;
-};
-
-export const addDevice = async (device: Device): Promise<RunResult> => {
-  const database = await getDB();
-  const res = (await database.runAsync(
-    `INSERT INTO devices (id, name, ssid, modelCode)
-     VALUES (?, ?, ?, ?);`,
-    [device.id, device.name, device.ssid, device.modelCode ?? null]
-  )) as unknown as RunResult;
-  return res;
-};
-
-export const deleteDevice = async (id: string): Promise<RunResult> => {
-  const database = await getDB();
-  const res = (await database.runAsync("DELETE FROM devices WHERE id = ?;", [
-    id,
-  ])) as unknown as RunResult;
-  return res;
-};
-
-export const updateDeviceModelCode = async (
-  id: string,
-  modelCode: string
-): Promise<RunResult> => {
-  const database = await getDB();
-  const res = (await database.runAsync(
-    "UPDATE devices SET modelCode = ? WHERE id = ?;",
-    [modelCode, id]
-  )) as unknown as RunResult;
-  return res;
-};
-
-export const updateDeviceName = async (
-  id: string,
-  name: string
-): Promise<RunResult> => {
-  const database = await getDB();
-  const res = (await database.runAsync(
-    "UPDATE devices SET name = ? WHERE id = ?;",
-    [name, id]
-  )) as unknown as RunResult;
   return res;
 };
