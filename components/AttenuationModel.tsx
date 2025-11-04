@@ -86,6 +86,9 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
                 size={KNOB_SIZE}
                 value={frontLeft}
                 onValueChange={setFrontLeft}
+                min={-14}
+                max={0}
+                step={1}
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-green.png")}
               />
@@ -94,6 +97,9 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
                 size={KNOB_SIZE}
                 value={frontRight}
                 onValueChange={setFrontRight}
+                min={-14}
+                max={0}
+                step={1}
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-green.png")}
               />
@@ -105,6 +111,9 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
                 size={KNOB_SIZE}
                 value={center}
                 onValueChange={setCenter}
+                min={-14}
+                max={0}
+                step={1}
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/knob-indicator.png")}
               />
@@ -115,6 +124,9 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
                 size={KNOB_SIZE}
                 value={rearLeft}
                 onValueChange={setRearLeft}
+                min={-14}
+                max={0}
+                step={1}
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-blue.png")}
               />
@@ -123,6 +135,9 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
                 size={KNOB_SIZE}
                 value={rearRight}
                 onValueChange={setRearRight}
+                min={-14}
+                max={0}
+                step={1}
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-blue.png")}
               />

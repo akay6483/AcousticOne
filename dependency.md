@@ -4,3 +4,6 @@ npx expo install expo-sqlite
 npm install -g eas-cli
 react-native-community/netinfo
 npx expo install expo-location
+npx expo install expo-haptics
+npx expo install expo-file-system
+npx expo install expo-audio

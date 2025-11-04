@@ -241,6 +241,37 @@ const GTZAN_PRESETS: Omit<Preset, "id">[] = [
   },
 ];
 
+export type Devices = {
+  modelCode: string;
+  modelName: string;
+  modelImage: string;
+  ssid: string;
+  password: string;
+  desc: string;
+  help_text: string;
+};
+
+const INITIAL_DEVICES: Devices[] = [
+  {
+    modelCode: "38B14",
+    modelName: "PE PRO",
+    modelImage: "pv_pro",
+    ssid: "PE PRO 38B14",
+    password: "PrasadDigital",
+    desc: "Placeholder",
+    help_text: "Placeholder",
+  },
+  {
+    modelCode: "27546",
+    modelName: "PE SERIES 1",
+    modelImage: "pe_pro",
+    ssid: "PE SERIES 20154",
+    password: "userpass",
+    desc: "Placeholder",
+    help_text: "Placeholder",
+  },
+];
+
 /* --- DB instance + init guard --- */
 let db: SQLiteDatabase | null = null;
 let _initPromise: Promise<void> | null = null;
@@ -294,10 +325,13 @@ export const initDB = async (): Promise<void> => {
 
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS devices (
-        id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
+        modelCode TEXT PRIMARY KEY NOT NULL,
+        modelName TEXT NOT NULL,
+        modelImage TEXT,
         ssid TEXT NOT NULL,
-        modelCode TEXT
+        password TEXT NOT NULL,  
+        desc TEXT,           
+        help_text TEXT
       );
     `);
 
@@ -319,6 +353,33 @@ export const initDB = async (): Promise<void> => {
       }
     } catch (err) {
       console.warn("initDB: error inserting GTZAN presets", err);
+    }
+
+    try {
+      const deviceCountRow = await database.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) as count FROM devices;"
+      );
+      const count = deviceCountRow?.count ?? 0;
+      if (count === 0) {
+        console.log("Populating initial devices...");
+        for (const d of INITIAL_DEVICES) {
+          await database.runAsync(
+            "INSERT INTO devices (modelCode, modelName, modelImage, ssid, password, desc, help_text) VALUES (?, ?, ?, ?, ?, ?, ?);",
+            [
+              d.modelCode,
+              d.modelName,
+              d.modelImage,
+              d.ssid,
+              d.password,
+              d.desc,
+              d.help_text,
+            ]
+          );
+        }
+        console.log("Initial devices populated.");
+      }
+    } catch (err) {
+      console.warn("initDB: error inserting initial devices", err);
     }
 
     console.log("✅ Database initialized successfully.");
@@ -382,4 +443,13 @@ export const deletePreset = async (id: number): Promise<RunResult> => {
     id,
   ])) as unknown as RunResult;
   return res;
+};
+
+export const getDevices = async (): Promise<Devices[]> => {
+  const database = await getDB();
+  // Fetch all devices from the table
+  const rows = await database.getAllAsync<Devices>(
+    "SELECT * FROM devices ORDER BY modelName ASC;"
+  );
+  return rows;
 };
