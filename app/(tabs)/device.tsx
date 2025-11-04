@@ -269,40 +269,6 @@ export default function DeviceConnectScreen() {
       {/* Model Name and Wi-Fi Details (Now 2 lines) */}
       <View style={styles.modelDetails}>
         <Text style={styles.modelName}>{model.modelName}</Text>
-
-        {/* SSID Line */}
-        <View style={styles.wifiDetailRow}>
-          <Text style={[styles.wifiLabel, { color: colors.textMuted }]}>
-            Network (SSID):
-          </Text>
-          <Text style={[styles.wifiValue, { color: colors.text }]}>
-            {model.ssid}
-          </Text>
-        </View>
-
-        {/* Password Line with Toggle */}
-        <View style={styles.wifiDetailRow}>
-          <Text style={[styles.wifiLabel, { color: colors.textMuted }]}>
-            Password:
-          </Text>
-          <View style={styles.passwordContainer}>
-            <Text
-              style={[styles.wifiValue, { color: colors.text, marginRight: 5 }]}
-            >
-              {showPassword ? model.password : "••••••••••••"}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={styles.passwordToggle}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={16}
-                color={colors.inactiveTint}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
       </View>
     </TouchableOpacity>
   );

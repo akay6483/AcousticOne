@@ -47,8 +47,13 @@ export const HelpModal: React.FC<HelpModalProps> = ({
           ]}
         >
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
+            <Ionicons
+              name="help-circle-outline"
+              size={28}
+              color={colors.icon}
+            />
             <Text style={[styles.title, { color: colors.text }]}>
-              Wi-Fi Connection Help
+              Connection Help
             </Text>
             <Pressable onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={28} color={colors.icon} />

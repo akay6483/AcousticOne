@@ -134,7 +134,7 @@ export const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({
                 <Text
                   style={[styles.detailValue, { color: colors.text, flex: 1 }]}
                 >
-                  {showPassword ? model.password : "••••••••••••"}
+                  {showPassword ? model.password : "•••••"}
                 </Text>
                 <Pressable onPress={toggleShowPassword} style={styles.eyeIcon}>
                   <Ionicons
