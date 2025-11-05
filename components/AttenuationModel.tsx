@@ -17,21 +17,20 @@ import { Knob } from "./Knob";
 interface AttenuationModalProps {
   visible: boolean;
   onClose: () => void;
-  frontLeft: number;
-  setFrontLeft: (value: number) => void;
-  frontRight: number;
-  setFrontRight: (value: number) => void;
-  subwoofer: number;
-  setSubwoofer: (value: number) => void;
-  center: number;
-  setCenter: (value: number) => void;
-  rearLeft: number;
-  setRearLeft: (value: number) => void;
-  rearRight: number;
-  setRearRight: (value: number) => void;
+  frontLeft: number; // This is now an index
+  setFrontLeft: (value: number) => void; // This sets an index
+  frontRight: number; // This is now an index
+  setFrontRight: (value: number) => void; // This sets an index
+  subwoofer: number; // This is now an index
+  setSubwoofer: (value: number) => void; // This sets an index
+  center: number; // This is now an index
+  setCenter: (value: number) => void; // This sets an index
+  rearLeft: number; // This is now an index
+  setRearLeft: (value: number) => void; // This sets an index
+  rearRight: number; // This is now an index
+  setRearRight: (value: number) => void; // This sets an index
 }
 
-// --- Local theme REMOVED ---
 const { width } = Dimensions.get("window");
 
 export const AttenuationModal: React.FC<AttenuationModalProps> = ({
@@ -50,8 +49,8 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
   rearRight,
   setRearRight,
 }) => {
-  const { colors } = useTheme(); // Use global theme
-  const styles = useMemo(() => getStyles(colors), [colors]); // Memoize styles
+  const { colors } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
 
   const KNOB_SIZE = width * 0.38;
 
@@ -70,7 +69,7 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
               <MaterialIcons
                 name="speaker"
                 size={24}
-                color={colors.icon} // Use theme color
+                color={colors.icon}
                 style={styles.headerIcon}
               />
               <Text style={styles.headerTitle}>Attenuation</Text>
@@ -79,27 +78,29 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
               </Pressable>
             </View>
 
-            {/* --- MODIFIED: Knobs Grid --- */}
+            {/* --- MODIFIED: Knobs Grid (using valueIndex/onIndexChange) --- */}
             <View style={styles.gridContainer}>
               <Knob
                 label="Front Left"
                 size={KNOB_SIZE}
-                value={frontLeft}
-                onValueChange={setFrontLeft}
+                valueIndex={frontLeft}
+                onIndexChange={setFrontLeft}
                 min={-14}
                 max={0}
                 step={1}
+                valueSuffix="dB" // Added suffix
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-green.png")}
               />
               <Knob
                 label="Front Right"
                 size={KNOB_SIZE}
-                value={frontRight}
-                onValueChange={setFrontRight}
+                valueIndex={frontRight}
+                onIndexChange={setFrontRight}
                 min={-14}
                 max={0}
                 step={1}
+                valueSuffix="dB" // Added suffix
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-green.png")}
               />
@@ -109,11 +110,12 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
               <Knob
                 label="Center"
                 size={KNOB_SIZE}
-                value={center}
-                onValueChange={setCenter}
+                valueIndex={center}
+                onIndexChange={setCenter}
                 min={-14}
                 max={0}
                 step={1}
+                valueSuffix="dB"
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/knob-indicator.png")}
               />
@@ -122,22 +124,24 @@ export const AttenuationModal: React.FC<AttenuationModalProps> = ({
               <Knob
                 label="Rear Left"
                 size={KNOB_SIZE}
-                value={rearLeft}
-                onValueChange={setRearLeft}
+                valueIndex={rearLeft}
+                onIndexChange={setRearLeft}
                 min={-14}
                 max={0}
                 step={1}
+                valueSuffix="dB" // Added suffix
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-blue.png")}
               />
               <Knob
                 label="Rear Right"
                 size={KNOB_SIZE}
-                value={rearRight}
-                onValueChange={setRearRight}
+                valueIndex={rearRight}
+                onIndexChange={setRearRight}
                 min={-14}
                 max={0}
                 step={1}
+                valueSuffix="dB" // Added suffix
                 dialBaseImage={require("../assets/images/dial-base.png")}
                 indicatorImage={require("../assets/images/dial-indicator-blue.png")}
               />
@@ -155,10 +159,10 @@ const getStyles = (colors: typeof lightColors) =>
     modalContainer: {
       flex: 1,
       justifyContent: "flex-end",
-      backgroundColor: colors.modalOverlay, // Use theme color
+      backgroundColor: colors.modalOverlay,
     },
     modalBody: {
-      backgroundColor: colors.modalBackground, // Use theme color
+      backgroundColor: colors.modalBackground,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       paddingVertical: 20,
@@ -180,7 +184,7 @@ const getStyles = (colors: typeof lightColors) =>
       flex: 2,
       fontSize: 22,
       fontWeight: "700",
-      color: colors.text, // Use theme color
+      color: colors.text,
       textAlign: "center",
     },
     closeButton: {

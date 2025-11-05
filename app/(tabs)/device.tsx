@@ -1,5 +1,11 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,7 +22,7 @@ import { useTheme } from "../../theme/ThemeContext";
 import { lightColors } from "../../theme/colors";
 
 // --- Import Components & Database ---
-import { DeviceInfoModal } from "../../components/DeviceInfoModal"; // NEW IMPORT
+import { DeviceInfoModal } from "../../components/DeviceInfoModal";
 import { HelpModal } from "../../components/HelpModal";
 import { ModelSelectionModal } from "../../components/ModelSelectionModal";
 import { Devices, getDevices } from "../../services/database";
@@ -29,6 +35,8 @@ const MODEL_IMAGES: { [key: string]: any } = {
 
 const ESP_HOST_AP = "http://192.168.4.1"; // ESP softAP default
 const ESP_HOST_STA = "http://<YOUR_DEVICE_IP>"; // Placeholder for STA mode IP
+const PING_INTERVAL_MS = 30000; // 30 seconds for the continuous loop
+const PING_DELAY_MS = 1000; // New: 1 second delay to prevent successive button spamming
 
 // --- CONNECTION MODES ---
 type ConnectionMode = "AP_MODE" | "NETWORK_MODE";
@@ -47,6 +55,9 @@ async function fetchWithTimeout(url: string, timeoutMs = 3000) {
   }
 }
 
+// Helper to add a delay
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function DeviceConnectScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => getScreenStyles(colors), [colors]);
@@ -54,26 +65,26 @@ export default function DeviceConnectScreen() {
   const [connectionStatus, setConnectionStatus] = useState<
     "disconnected" | "checking" | "connected"
   >("disconnected");
-  const [connectedSSID, setConnectedSSID] = useState<string | null>(null);
   const [models, setModels] = useState<Devices[]>([]);
   const [selectedModel, setSelectedModel] = useState<Devices | null>(null);
 
-  // New state for connection mode
   const [connectionMode, setConnectionMode] =
     useState<ConnectionMode>("AP_MODE"); // Default to AP Mode
 
+  // New state to control the ping loop
+  const [isConnecting, setIsConnecting] = useState(false);
+  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPingTimeRef = useRef(0); // For robustness check
+
   // Modals
   const [isModelModalVisible, setIsModelModalVisible] = useState(false);
-  // Help Modal (formerly info)
   const [isHelpModalVisible, setIsHelpModalVisible] = useState(false);
-  // Device Info Modal (the new "info" modal)
   const [isDeviceInfoModalVisible, setIsDeviceInfoModalVisible] =
     useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
 
   // Connection control
-  const [isInitialCheckDone, setIsInitialCheckDone] = useState(false);
   const appState = useRef(AppState.currentState);
 
   // --- Data Loading Function ---
@@ -90,90 +101,140 @@ export default function DeviceConnectScreen() {
     }
   };
 
-  const checkConnection = async () => {
-    if (!selectedModel) return;
+  /**
+   * Pings the device and updates the connection status.
+   * Returns true on success, false on failure.
+   * @param isLoopPing Indicates if this is part of the 30s loop (affects error handling).
+   */
+  const pingDevice = useCallback(
+    async (isLoopPing: boolean = false) => {
+      if (!selectedModel) return false;
 
-    setConnectionStatus("checking");
-    setConnectedSSID(null);
+      // Check for robustness: Prevent spamming if it's a manual refresh and the last ping was too recent
+      if (
+        !isLoopPing &&
+        Date.now() - lastPingTimeRef.current < PING_DELAY_MS * 2
+      ) {
+        console.log("Ping skipped: Too soon after last attempt.");
+        return connectionStatus === "connected"; // Return current status if skipping
+      }
 
-    let host = "";
-    if (connectionMode === "AP_MODE") {
-      host = ESP_HOST_AP;
-    } else {
-      // Placeholder for Network Mode logic
-      host = ESP_HOST_STA;
-      if (host === "http://<YOUR_DEVICE_IP>") {
-        Alert.alert(
-          "Network Mode",
-          "Please configure the device IP for Network Mode."
-        );
+      lastPingTimeRef.current = Date.now();
+      setConnectionStatus("checking");
+
+      let host = "";
+      if (connectionMode === "AP_MODE") {
+        host = ESP_HOST_AP;
+      } else {
+        host = ESP_HOST_STA;
+        if (host === "http://<YOUR_DEVICE_IP>") {
+          if (!isConnecting) {
+            Alert.alert(
+              "Network Mode Configuration",
+              "Please configure the device IP for Network Mode."
+            );
+          }
+          setConnectionStatus("disconnected");
+          return false;
+        }
+      }
+
+      try {
+        // 1. Delay before ping to allow device to settle
+        await sleep(PING_DELAY_MS);
+
+        // 2. Perform the ping
+        const r = await fetchWithTimeout(`${host}/ping`, 2500);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        await r.text(); // Consume response body "pong"
+
+        // 3. Delay after successful ping before allowing new requests
+        await sleep(PING_DELAY_MS);
+
+        setConnectionStatus("connected");
+        return true;
+      } catch (e: any) {
         setConnectionStatus("disconnected");
-        return;
+        if (isConnecting || isLoopPing) {
+          console.log("Ping failed in connection loop/check. Stopping loop.");
+        } else {
+          // Only show alert for a single, manual ping/initial connect attempt
+          Alert.alert(
+            "Ping Failed",
+            "The device is unreachable. Check your Wi-Fi."
+          );
+        }
+        return false;
       }
+    },
+    [selectedModel, connectionMode, isConnecting, connectionStatus]
+  );
+
+  // --- Loop Control Functions ---
+
+  const stopConnectionLoop = () => {
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
     }
-
-    try {
-      const r = await fetchWithTimeout(`${host}/getssid`, 2500);
-      if (!r.ok) throw new Error("HTTP " + r.status);
-
-      const txt = await r.text();
-      setConnectedSSID(txt);
-      setConnectionStatus("connected");
-    } catch (e: any) {
-      setConnectionStatus("disconnected");
-      setConnectedSSID(null);
-      if (e.name !== "AbortError") {
-        console.log("Connection check failed:", e.message);
-      }
+    if (isConnecting) {
+      setIsConnecting(false);
+      console.log("Connection loop stopped.");
     }
   };
 
-  const onPing = async () => {
-    let host = "";
-    if (connectionMode === "AP_MODE") {
-      host = ESP_HOST_AP;
-    } else {
-      host = ESP_HOST_STA;
-      if (host === "http://<YOUR_DEVICE_IP>") {
-        Alert.alert(
-          "Network Mode",
-          "Please configure the device IP for Network Mode before pinging."
-        );
-        return;
-      }
+  const startConnectionLoop = async () => {
+    // If already connecting, treat button press as 'Stop'
+    if (isConnecting) {
+      stopConnectionLoop();
+      return;
     }
 
-    try {
-      const r = await fetchWithTimeout(`${host}/ping`, 2500);
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const txt = await r.text();
-      Alert.alert("Ping Success", "Received: " + txt);
-    } catch (e: any) {
-      Alert.alert("Ping Failed", e.message ?? String(e));
+    setIsConnecting(true);
+    console.log("Starting connection loop...");
+
+    // 1. Initial Ping
+    const initialPingSucceeded = await pingDevice(true); // Treat initial as loop ping for error handling
+
+    if (!initialPingSucceeded) {
+      stopConnectionLoop();
+      Alert.alert(
+        "Connection Attempt Failed",
+        "The device did not respond. Check your Wi-Fi settings."
+      );
+      return;
     }
+
+    // 2. Set up the interval only if the initial ping succeeds
+    pingIntervalRef.current = setInterval(async () => {
+      const succeeded = await pingDevice(true);
+      if (!succeeded) {
+        stopConnectionLoop();
+        Alert.alert("Connection Lost", "Device connection was lost.");
+      }
+    }, PING_INTERVAL_MS);
   };
 
   // --- Handler passed to the ModelSelectionModal ---
   const handleSelectModel = (model: Devices) => {
     setSelectedModel(model);
     setIsModelModalVisible(false);
-    // Force re-check connection status status for the newly selected device
-    setIsInitialCheckDone(false);
+    // Stop the connection loop when model changes
+    stopConnectionLoop();
   };
+
+  // --- Effects ---
 
   useEffect(() => {
     loadDevices();
   }, []);
 
+  // Effect for AppState Listener and Cleanup
   useEffect(() => {
-    // 1. Initial Check on First Load or when mode/model changes
-    if (selectedModel && !isInitialCheckDone) {
-      console.log("Initial connection check running...");
-      checkConnection();
-      setIsInitialCheckDone(true);
-    }
+    // Stop loop if connection mode or model changes
+    stopConnectionLoop();
 
-    // 2. AppState Listener: Only check connection when returning to the app
+    // AppState Listener: Perform a one-off ping when returning to the app
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (
         appState.current.match(/inactive|background/) &&
@@ -182,15 +243,18 @@ export default function DeviceConnectScreen() {
         console.log(
           "App has come to the foreground, explicitly checking connection..."
         );
-        checkConnection();
+        // Ping device on foreground entry to update status
+        pingDevice();
       }
       appState.current = nextAppState;
     });
 
     return () => {
       subscription.remove();
+      // Ensure loop stops on component unmount
+      stopConnectionLoop();
     };
-  }, [selectedModel, isInitialCheckDone, connectionMode]); // Re-run effect on mode change
+  }, [pingDevice]);
 
   // --- Hook Order Fix: useMemo must be called unconditionally ---
   const cardShadowStyle = useMemo(
@@ -216,7 +280,9 @@ export default function DeviceConnectScreen() {
           <View style={styles.statusContent}>
             <ActivityIndicator color={colors.primary} />
             <Text style={[styles.statusText, { color: colors.textMuted }]}>
-              Checking connection...
+              {isConnecting
+                ? "Checking (Loop Active)..."
+                : "Checking connection..."}
             </Text>
           </View>
         );
@@ -225,7 +291,7 @@ export default function DeviceConnectScreen() {
           <View style={styles.statusContent}>
             <Ionicons name="checkmark-circle" size={20} color="#34d399" />
             <Text style={[styles.statusText, { color: colors.text }]}>
-              Connected to: {connectedSSID}
+              {isConnecting ? "Connected (Loop Active)" : "Connected"}
             </Text>
           </View>
         );
@@ -289,7 +355,7 @@ export default function DeviceConnectScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      {/* --- Model Selector Card (with Info Icon) --- */}
+      {/* --- Model Selector Card (with Connect Button) --- */}
       <View style={[styles.card, cardShadowStyle]}>
         <View style={styles.cardHeader}>
           <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
@@ -316,10 +382,98 @@ export default function DeviceConnectScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.cardContent}>{renderModelItem(selectedModel)}</View>
+
+        <View style={styles.cardContent}>
+          {renderModelItem(selectedModel)}
+
+          {/* Connection Mode Selector (MOVED HERE) */}
+          <View style={[styles.modeSelectorContainer, { marginTop: 16 }]}>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                connectionMode === "AP_MODE" && styles.modeButtonSelected,
+                {
+                  backgroundColor:
+                    connectionMode === "AP_MODE"
+                      ? colors.primary
+                      : colors.background,
+                  borderColor: colors.primary,
+                },
+              ]}
+              onPress={() => {
+                setConnectionMode("AP_MODE");
+                stopConnectionLoop(); // Stop loop on mode switch
+              }}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  {
+                    color:
+                      connectionMode === "AP_MODE" ? colors.card : colors.text,
+                  },
+                ]}
+              >
+                AP Connect
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                connectionMode === "NETWORK_MODE" && styles.modeButtonSelected,
+                {
+                  backgroundColor:
+                    connectionMode === "NETWORK_MODE"
+                      ? colors.primary
+                      : colors.background,
+                  borderColor: colors.primary,
+                },
+              ]}
+              onPress={() => {
+                setConnectionMode("NETWORK_MODE");
+                stopConnectionLoop(); // Stop loop on mode switch
+              }}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  {
+                    color:
+                      connectionMode === "NETWORK_MODE"
+                        ? colors.card
+                        : colors.text,
+                  },
+                ]}
+              >
+                Network Connect
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* CONNECT/STOP BUTTON (New requirement location) */}
+        <TouchableOpacity
+          style={[
+            styles.connectButton,
+            {
+              backgroundColor: isConnecting ? colors.error : colors.primary,
+            },
+          ]}
+          onPress={startConnectionLoop}
+        >
+          <Ionicons
+            name={isConnecting ? "close-circle" : "wifi"}
+            size={20}
+            color={colors.card}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.connectButtonText, { color: colors.card }]}>
+            {isConnecting ? "Stop Connection Check" : "Start Connection Check"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* --- Status Card (with Mode Selector) --- */}
+      {/* --- Status Card (with Ping Button/Refresh) --- */}
       <View style={[styles.card, cardShadowStyle]}>
         <View style={styles.cardHeader}>
           <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
@@ -336,17 +490,17 @@ export default function DeviceConnectScreen() {
                 color={colors.primary}
               />
             </TouchableOpacity>
-            {/* Refresh/Reconnect button */}
+            {/* Refresh/Ping button (Now using pingDevice for one-off check) */}
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={checkConnection}
-              disabled={connectionStatus === "checking"}
+              onPress={() => pingDevice(false)} // Use pingDevice for a single check/refresh
+              disabled={connectionStatus === "checking" || isConnecting}
             >
               <Ionicons
                 name="refresh"
                 size={20}
                 color={
-                  connectionStatus === "checking"
+                  connectionStatus === "checking" || isConnecting
                     ? colors.inactiveTint
                     : colors.primary
                 }
@@ -356,88 +510,9 @@ export default function DeviceConnectScreen() {
         </View>
         <View style={styles.cardContent}>
           {renderStatusContent()}
-
-          {/* Connection Mode Selector */}
-          <View style={styles.modeSelectorContainer}>
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                connectionMode === "AP_MODE" && styles.modeButtonSelected,
-                {
-                  backgroundColor:
-                    connectionMode === "AP_MODE"
-                      ? colors.primary
-                      : colors.background, // Use primary for selection, card for background
-                  borderColor: colors.primary,
-                },
-              ]}
-              onPress={() => {
-                setConnectionMode("AP_MODE");
-                setIsInitialCheckDone(false); // Force re-check on mode switch
-              }}
-            >
-              <Text
-                style={[
-                  styles.modeButtonText,
-                  {
-                    color:
-                      connectionMode === "AP_MODE"
-                        ? colors.card // buttonText
-                        : colors.text,
-                  },
-                ]}
-              >
-                AP Connect
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                connectionMode === "NETWORK_MODE" && styles.modeButtonSelected,
-                {
-                  backgroundColor:
-                    connectionMode === "NETWORK_MODE"
-                      ? colors.primary
-                      : colors.background, // Use primary for selection, card for background
-                  borderColor: colors.primary,
-                },
-              ]}
-              onPress={() => {
-                setConnectionMode("NETWORK_MODE");
-                setIsInitialCheckDone(false); // Force re-check on mode switch
-              }}
-            >
-              <Text
-                style={[
-                  styles.modeButtonText,
-                  {
-                    color:
-                      connectionMode === "NETWORK_MODE"
-                        ? colors.card // buttonText
-                        : colors.text,
-                  },
-                ]}
-              >
-                Network Connect
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {/* REMOVED Connection Mode Selector from here */}
         </View>
       </View>
-
-      {/* --- PING Button (for testing) --- */}
-      <TouchableOpacity
-        style={[
-          styles.pingButton,
-          { backgroundColor: colors.primary, shadowColor: colors.primary },
-        ]}
-        onPress={onPing}
-      >
-        <Text style={[styles.pingButtonText, { color: colors.card }]}>
-          Test Ping
-        </Text>
-        <Ionicons name="paper-plane-outline" size={16} color={colors.card} />
-      </TouchableOpacity>
 
       {/* --- Modals --- */}
       {models.length > 0 && selectedModel && (
@@ -546,7 +621,7 @@ const getScreenStyles = (colors: typeof lightColors) =>
       color: colors.text,
       marginBottom: 4,
     },
-    // New styles for 2-line Wi-Fi info
+    // Wi-Fi details (no changes, but keeping for reference)
     wifiDetailRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -574,7 +649,7 @@ const getScreenStyles = (colors: typeof lightColors) =>
       flexDirection: "row",
       alignItems: "center",
       height: 30,
-      marginBottom: 16, // Added space before selector
+      // Removed marginBottom: 16 since mode selector moved
     },
     statusText: {
       fontSize: 16,
@@ -602,25 +677,20 @@ const getScreenStyles = (colors: typeof lightColors) =>
       fontSize: 14,
       fontWeight: "600",
     },
-    // Ping Button
-    pingButton: {
-      borderRadius: 10,
-      padding: 16,
+    // Connect Button (New Style for the button inside the Model Selector Card)
+    connectButton: {
+      padding: 12,
+      borderBottomLeftRadius: 12,
+      borderBottomRightRadius: 12,
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
-      shadowOpacity: 0.3,
-      shadowOffset: { width: 0, height: 4 },
-      shadowRadius: 6,
-      elevation: 5,
-      marginBottom: 40,
     },
-    pingButtonText: {
+    connectButtonText: {
       fontSize: 16,
-      fontWeight: "600",
-      marginRight: 8,
+      fontWeight: "700",
     },
-    // Modal Styles (Outer container styles, remaining here)
+    // REMOVED: Old pingButton styles
     modalBackdrop: {
       flex: 1,
       backgroundColor: colors.modalOverlay,
