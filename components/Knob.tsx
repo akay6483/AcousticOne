@@ -22,14 +22,14 @@ import { lightColors } from "../theme/colors";
 type KnobProps = {
   size: number;
   label: string;
-  value: number; // This is now the *actual* value (e.g., -5), not 0-100
-  onValueChange?: (value: number) => void;
+  valueIndex: number; // CHANGED: This is now the step index (e.g., 0, 1, 2...)
+  onIndexChange?: (valueIndex: number) => void; // CHANGED: This returns the step index
   dialBaseImage?: ImageSourcePropType;
   indicatorImage?: ImageSourcePropType;
-  min?: number; // New prop
-  max?: number; // New prop
-  step?: number; // New prop
-  valueSuffix?: string; // New prop (e.g., "dB")
+  min?: number;
+  max?: number;
+  step?: number;
+  valueSuffix?: string;
 };
 
 // --- Angle Constants (Unchanged) ---
@@ -41,6 +41,30 @@ const START_ANGLE = MAX_DEAD_ZONE_DEG;
 const END_ANGLE = MIN_DEAD_ZONE_DEG;
 
 // --- 2. MODIFIED: Helper Functions ---
+
+/**
+ * Converts a step index (e.g., 1) back to its actual value (e.g., -12).
+ */
+const getValueFromIndex = (
+  index: number,
+  min: number,
+  step: number
+): number => {
+  "worklet";
+  return index * step + min;
+};
+
+/**
+ * Converts an actual value (e.g., -12) to its step index (e.g., 1).
+ */
+const getIndexFromValue = (
+  value: number,
+  min: number,
+  step: number
+): number => {
+  "worklet";
+  return Math.round((value - min) / step);
+};
 
 /**
  * Calculates the percentage (0.0 to 1.0) from a value within a range.
@@ -82,23 +106,32 @@ const getActualValueFromAngle = (
   const relativeAngle = (angle - START_ANGLE + 360) % 360;
   const percent = relativeAngle / LIVE_ZONE_SWEEP;
   const rawValue = min + percent * (max - min);
-
-  // Snap to the nearest step
   const snappedValue = Math.round(rawValue / step) * step;
-
-  // Clamp to min/max
   return Math.min(Math.max(snappedValue, min), max);
+};
+
+/**
+ * Calculates the step index (snapped) from a knob angle.
+ */
+const getIndexFromAngle = (
+  angle: number,
+  min: number,
+  max: number,
+  step: number
+): number => {
+  "worklet";
+  const actualValue = getActualValueFromAngle(angle, min, max, step);
+  return getIndexFromValue(actualValue, min, step);
 };
 
 // --- MODIFIED: Main Component ---
 export const Knob: React.FC<KnobProps> = ({
   size,
   label,
-  value,
-  onValueChange,
+  valueIndex, // CHANGED
+  onIndexChange, // CHANGED
   dialBaseImage,
   indicatorImage,
-  // 3. Add defaults for new props
   min = 0,
   max = 100,
   step = 1,
@@ -109,18 +142,20 @@ export const Knob: React.FC<KnobProps> = ({
 
   const CENTER = { x: size / 2, y: size / 2 };
 
-  // 4. Update rotation to use new helper
-  const rotation = useSharedValue(getAngleFromActualValue(value, min, max));
+  // 3. Calculate actual value and angle from the index
+  const actualValue = useMemo(
+    () => getValueFromIndex(valueIndex, min, step),
+    [valueIndex, min, step]
+  );
+  const rotation = useSharedValue(
+    getAngleFromActualValue(actualValue, min, max)
+  );
 
-  // 5. Update derived value to use new helper
-  const derivedActualValue = useDerivedValue(() => {
-    return getActualValueFromAngle(rotation.value, min, max, step);
-  });
-
-  // 6. Update useEffect to use new helper
+  // 4. Update useEffect to react to index changes
   useEffect(() => {
-    rotation.value = getAngleFromActualValue(value, min, max);
-  }, [value, min, max, rotation]);
+    const newActualValue = getValueFromIndex(valueIndex, min, step);
+    rotation.value = getAngleFromActualValue(newActualValue, min, max);
+  }, [valueIndex, min, max, step, rotation]);
 
   // --- panGesture ---
   const panGesture = Gesture.Pan()
@@ -159,15 +194,10 @@ export const Knob: React.FC<KnobProps> = ({
 
       rotation.value = newAngle;
 
-      // 7. Call prop with the *actual* value
-      if (onValueChange) {
-        const newValue = getActualValueFromAngle(
-          rotation.value,
-          min,
-          max,
-          step
-        );
-        runOnJS(onValueChange)(newValue);
+      // 5. Call prop with the *step index*
+      if (onIndexChange) {
+        const newIndex = getIndexFromAngle(rotation.value, min, max, step);
+        runOnJS(onIndexChange)(newIndex);
       }
     });
 
@@ -175,10 +205,12 @@ export const Knob: React.FC<KnobProps> = ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
-  // 8. Update valueText to format the actual value
+  // 6. valueText still displays the *actual value* derived from rotation
+  const derivedActualValue = useDerivedValue(() => {
+    return getActualValueFromAngle(rotation.value, min, max, step);
+  });
   const valueText = useDerivedValue(() => {
     const val = derivedActualValue.value;
-    // Show decimals if step is fractional
     const decimals = step < 1 ? 1 : 0;
     return `${val.toFixed(decimals)}${valueSuffix}`;
   });
@@ -207,7 +239,6 @@ export const Knob: React.FC<KnobProps> = ({
       </GestureDetector>
 
       <Text style={styles.labelText}>{label.toUpperCase()}</Text>
-      {/* 9. Render the new formatted value text */}
       <Text style={styles.valueText}>{valueText.value}</Text>
     </View>
   );
