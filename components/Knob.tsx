@@ -9,8 +9,7 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
-  useAnimatedStyle,
-  useDerivedValue,
+  useAnimatedStyle, // Kept for the rotation animation
   useSharedValue,
 } from "react-native-reanimated";
 
@@ -18,7 +17,7 @@ import Animated, {
 import { useTheme } from "../theme/ThemeContext";
 import { lightColors } from "../theme/colors";
 
-// --- 1. MODIFIED: Prop Types ---
+// --- Prop Types (Unchanged) ---
 type KnobProps = {
   size: number;
   label: string;
@@ -40,11 +39,8 @@ const LIVE_ZONE_SWEEP = 270;
 const START_ANGLE = MAX_DEAD_ZONE_DEG;
 const END_ANGLE = MIN_DEAD_ZONE_DEG;
 
-// --- 2. MODIFIED: Helper Functions ---
-
-/**
- * Converts a step index (e.g., 1) back to its actual value (e.g., -12).
- */
+// --- Helper Functions (Unchanged) ---
+// ... (getValueFromIndex, getIndexFromAngle, etc. are all unchanged)
 const getValueFromIndex = (
   index: number,
   min: number,
@@ -53,10 +49,6 @@ const getValueFromIndex = (
   "worklet";
   return index * step + min;
 };
-
-/**
- * Converts an actual value (e.g., -12) to its step index (e.g., 1).
- */
 const getIndexFromValue = (
   value: number,
   min: number,
@@ -65,10 +57,6 @@ const getIndexFromValue = (
   "worklet";
   return Math.round((value - min) / step);
 };
-
-/**
- * Calculates the percentage (0.0 to 1.0) from a value within a range.
- */
 const getPercentFromValue = (
   value: number,
   min: number,
@@ -78,10 +66,6 @@ const getPercentFromValue = (
   const clampedValue = Math.min(Math.max(value, min), max);
   return (clampedValue - min) / (max - min);
 };
-
-/**
- * Calculates the knob's angle from an actual value.
- */
 const getAngleFromActualValue = (
   value: number,
   min: number,
@@ -92,10 +76,6 @@ const getAngleFromActualValue = (
   const angle = (START_ANGLE + percent * LIVE_ZONE_SWEEP) % 360;
   return angle;
 };
-
-/**
- * Calculates the actual value (snapped to step) from a knob angle.
- */
 const getActualValueFromAngle = (
   angle: number,
   min: number,
@@ -109,10 +89,6 @@ const getActualValueFromAngle = (
   const snappedValue = Math.round(rawValue / step) * step;
   return Math.min(Math.max(snappedValue, min), max);
 };
-
-/**
- * Calculates the step index (snapped) from a knob angle.
- */
 const getIndexFromAngle = (
   angle: number,
   min: number,
@@ -142,22 +118,24 @@ export const Knob: React.FC<KnobProps> = ({
 
   const CENTER = { x: size / 2, y: size / 2 };
 
-  // 3. Calculate actual value and angle from the index
+  // This `actualValue` is on the JS thread and updates when `valueIndex` prop changes
   const actualValue = useMemo(
     () => getValueFromIndex(valueIndex, min, step),
     [valueIndex, min, step]
   );
+
+  // This `rotation` is on the UI thread for the gesture
   const rotation = useSharedValue(
     getAngleFromActualValue(actualValue, min, max)
   );
 
-  // 4. Update useEffect to react to index changes
+  // This effect syncs the prop change to the UI thread (for the indicator)
   useEffect(() => {
     const newActualValue = getValueFromIndex(valueIndex, min, step);
     rotation.value = getAngleFromActualValue(newActualValue, min, max);
   }, [valueIndex, min, max, step, rotation]);
 
-  // --- panGesture ---
+  // --- panGesture (Unchanged) ---
   const panGesture = Gesture.Pan()
     .maxPointers(1)
     .onUpdate((event) => {
@@ -194,7 +172,7 @@ export const Knob: React.FC<KnobProps> = ({
 
       rotation.value = newAngle;
 
-      // 5. Call prop with the *step index*
+      // Call prop with the *step index*
       if (onIndexChange) {
         const newIndex = getIndexFromAngle(rotation.value, min, max, step);
         runOnJS(onIndexChange)(newIndex);
@@ -205,15 +183,15 @@ export const Knob: React.FC<KnobProps> = ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
-  // 6. valueText still displays the *actual value* derived from rotation
-  const derivedActualValue = useDerivedValue(() => {
-    return getActualValueFromAngle(rotation.value, min, max, step);
-  });
-  const valueText = useDerivedValue(() => {
-    const val = derivedActualValue.value;
+  // *** --- THIS IS THE FIX --- ***
+  // 1. REMOVED the `useDerivedValue` for `derivedActualValue` and `valueText`.
+  // 2. CREATED a new `valueText` using `useMemo`. This variable is on the
+  //    JS thread and will update *whenever `actualValue` changes*.
+  const valueText = useMemo(() => {
+    const val = actualValue; // Use the JS-thread `actualValue`
     const decimals = step < 1 ? 1 : 0;
     return `${val.toFixed(decimals)}${valueSuffix}`;
-  });
+  }, [actualValue, step, valueSuffix]); // Dependencies
 
   return (
     <View style={styles.container}>
@@ -239,7 +217,9 @@ export const Knob: React.FC<KnobProps> = ({
       </GestureDetector>
 
       <Text style={styles.labelText}>{label.toUpperCase()}</Text>
-      <Text style={styles.valueText}>{valueText.value}</Text>
+
+      {/* 3. Render the new JS-thread `valueText` variable. */}
+      <Text style={styles.valueText}>{valueText}</Text>
     </View>
   );
 };

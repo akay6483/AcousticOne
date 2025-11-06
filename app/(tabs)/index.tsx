@@ -4,8 +4,9 @@ import {
   MaterialCommunityIcons,
   MaterialIcons,
 } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AppState, //
   Dimensions,
   Pressable,
   SafeAreaView,
@@ -23,16 +24,14 @@ import { Knob } from "../../components/Knob";
 import { ModeSelector } from "../../components/ModeSelector";
 import { PresetModal } from "../../components/PresetModal";
 import { RemoteModal } from "../../components/RemoteModal";
-// Import the *updated* Preset type
 import { Preset } from "../../services/database";
-
-// --- IMPORT THEME ---
+import { loadLastSettings, saveLastSettings } from "../../services/storage";
 import { useTheme } from "../../theme/ThemeContext";
-import { lightColors } from "../../theme/colors"; // Import type
+import { lightColors } from "../../theme/colors";
 
 const { width } = Dimensions.get("window");
 
-// --- Prop Types (No Change) ---
+// ... (SwitchControl and ModalButton components remain unchanged)
 type SwitchControlProps = {
   label: string;
   value: boolean;
@@ -43,9 +42,6 @@ type ModalButtonProps = {
   onPress: () => void;
   icon: React.ReactNode;
 };
-
-// --- Reusable Sub-components (Unchanged) ---
-// ... (SwitchControl and ModalButton components remain unchanged)
 const SwitchControl: React.FC<SwitchControlProps> = ({
   label,
   value,
@@ -66,7 +62,6 @@ const SwitchControl: React.FC<SwitchControlProps> = ({
     </View>
   );
 };
-
 const ModalButton: React.FC<ModalButtonProps> = ({ label, onPress, icon }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => getModalButtonStyles(colors), [colors]);
@@ -79,66 +74,58 @@ const ModalButton: React.FC<ModalButtonProps> = ({ label, onPress, icon }) => {
   );
 };
 
-// --- 1. REMOVED: All mapping helper functions ---
-
 // --- Main Screen Component ---
 const ControlScreen: React.FC = () => {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getScreenStyles(colors), [colors]);
 
-  // --- 2. MODIFIED: State now stores the STEP INDEX ---
-  const [volume, setVolume] = useState(75); // Index 0-79 (Value 0 to 79)
-  const [bass, setBass] = useState(7); // Index 0-14 (Value -14 to +14, 7 is 0dB)
-  const [treble, setTreble] = useState(7); // Index 0-14 (Value -14 to +14, 7 is 0dB)
-  const [mid, setMid] = useState(7); // Index 0-14 (Value -14 to +14, 7 is 0dB)
-
-  // Attenuation States (store index)
-  const [frontLeft, setFrontLeft] = useState(14); // Index 0-14 (Value -14 to 0, 14 is 0dB)
-  const [frontRight, setFrontRight] = useState(14); // Index 0-14
-  const [subwoofer, setSubwoofer] = useState(50); // Index 0-100 (Assuming 0-100 range)
-  const [center, setCenter] = useState(14); // Index 0-14
-  const [rearLeft, setRearLeft] = useState(14); // Index 0-14
-  const [rearRight, setRearRight] = useState(14); // Index 0-14
-
+  // --- State Definitions (Default Values) ---
+  const [volume, setVolume] = useState(75);
+  const [bass, setBass] = useState(7);
+  const [treble, setTreble] = useState(7);
+  const [mid, setMid] = useState(7);
+  const [frontLeft, setFrontLeft] = useState(14);
+  const [frontRight, setFrontRight] = useState(14);
+  const [subwoofer, setSubwoofer] = useState(50);
+  const [center, setCenter] = useState(14);
+  const [rearLeft, setRearLeft] = useState(14);
+  const [rearRight, setRearRight] = useState(14);
   const [prologic, setPrologic] = useState(false);
   const [tone, setTone] = useState(true);
   const [surround, setSurround] = useState(false);
   const [mixed, setMixed] = useState(true);
   const [mode, setMode] = useState("AUX2");
-
   const [modalVisible, setModalVisible] = useState<string | null>(null);
   const openModal = (name: string) => setModalVisible(name);
   const closeModal = () => setModalVisible(null);
 
-  // --- 3. MODIFIED: applyPreset (direct assignment of index) ---
-  const applyPreset = (preset: Preset) => {
-    if (preset.preset_values) {
-      setVolume(preset.preset_values.volume);
-      setBass(preset.preset_values.bass);
-      setTreble(preset.preset_values.treble);
-      setMid(preset.preset_values.mid);
-      setPrologic(preset.preset_values.prologic);
-      setTone(preset.preset_values.tone);
-      setSurround(preset.preset_values.surround);
-      setMixed(preset.preset_values.mixed);
-      setFrontLeft(preset.preset_values.frontLeft);
-      setFrontRight(preset.preset_values.frontRight);
-      setSubwoofer(preset.preset_values.subwoofer);
-      setCenter(preset.preset_values.center);
-      setRearLeft(preset.preset_values.rearLeft);
-      setRearRight(preset.preset_values.rearRight);
-      setMode(preset.preset_values.mode);
-    }
+  // --- Apply Settings Function ---
+  const applySettings = (settings: Preset["preset_values"]) => {
+    setVolume(settings.volume);
+    setBass(settings.bass);
+    setTreble(settings.treble);
+    setMid(settings.mid);
+    setPrologic(settings.prologic);
+    setTone(settings.tone);
+    setSurround(settings.surround);
+    setMixed(settings.mixed);
+    setFrontLeft(settings.frontLeft);
+    setFrontRight(settings.frontRight);
+    setSubwoofer(settings.subwoofer);
+    setCenter(settings.center);
+    setRearLeft(settings.rearLeft);
+    setRearRight(settings.rearRight);
+    setMode(settings.mode);
   };
 
   const handleClosePresetModal = (preset?: Preset) => {
-    if (preset) {
-      applyPreset(preset);
+    if (preset && preset.preset_values) {
+      applySettings(preset.preset_values);
     }
     closeModal();
   };
 
-  // --- 4. MODIFIED: currentSettings (direct assignment of index) ---
+  // --- Current Settings Object ---
   const currentSettings: Preset["preset_values"] = {
     volume,
     bass,
@@ -157,7 +144,46 @@ const ControlScreen: React.FC = () => {
     mode,
   };
 
-  // --- Knob Sizes (Unchanged) ---
+  // --- Load settings on component mount ---
+  useEffect(() => {
+    const load = async () => {
+      const loadedSettings = await loadLastSettings();
+      if (loadedSettings) {
+        applySettings(loadedSettings);
+      }
+    };
+    load();
+  }, []);
+
+  // --- Save settings on change AND background ---
+  const settingsRef = useRef(currentSettings);
+
+  // *** MODIFIED ***
+  // This effect now saves settings to AsyncStorage on *every* change.
+  // This allows the device.tsx loop to read the most up-to-date values.
+  useEffect(() => {
+    settingsRef.current = currentSettings;
+    // Save settings on *every* change
+    saveLastSettings(currentSettings);
+  }, [currentSettings]); // This dependency array is key
+
+  // This effect still handles saving when the app is backgrounded/closed
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
+        console.log("App going to background, saving settings...");
+        saveLastSettings(settingsRef.current);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      console.log("App unmounting, saving settings...");
+      saveLastSettings(settingsRef.current);
+    };
+  }, []); // Empty array ensures this runs only once
+
+  // --- Knob Sizes ---
   const LARGE_KNOB_SIZE = width * 0.45;
   const SMALL_KNOB_SIZE = width * 0.3;
 
@@ -167,8 +193,7 @@ const ControlScreen: React.FC = () => {
         <SafeAreaView style={styles.safeArea}>
           <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
           <ScrollView contentContainerStyle={styles.mainScrollView}>
-            {/* --- BUTTONS SECTION (Unchanged) --- */}
-            {/* ... (ModalButton components) ... */}
+            {/* --- BUTTONS SECTION --- */}
             <ScrollView
               horizontal={true}
               showsHorizontalScrollIndicator={false}
@@ -212,9 +237,8 @@ const ControlScreen: React.FC = () => {
 
             <ModeSelector mode={mode} onModeChange={setMode} />
 
-            {/* --- 5. MODIFIED: KNOBS SECTION (using valueIndex/onIndexChange) --- */}
+            {/* --- KNOBS SECTION --- */}
             <View style={styles.knobsSection}>
-              {/* Row 1: Large Volume Knob (Centered) */}
               <View style={styles.knobRowCenter}>
                 <Knob
                   label="Volume"
@@ -229,8 +253,6 @@ const ControlScreen: React.FC = () => {
                   indicatorImage={require("../../assets/images/knob-indicator.png")}
                 />
               </View>
-
-              {/* Row 2: Two Smaller Knobs (Apart) */}
               <View style={styles.knobRowApart}>
                 <Knob
                   label="Bass"
@@ -257,8 +279,6 @@ const ControlScreen: React.FC = () => {
                   indicatorImage={require("../../assets/images/dial-indicator-red.png")}
                 />
               </View>
-
-              {/* Row 3: One Smaller Knob (Centered) */}
               <View style={styles.knobRowCenter}>
                 <Knob
                   label="Mid"
@@ -275,8 +295,7 @@ const ControlScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* --- SWITCHES SECTION (Unchanged) --- */}
-            {/* ... (SwitchControl components) ... */}
+            {/* --- SWITCHES SECTION --- */}
             <View style={styles.switchesSection}>
               <SwitchControl
                 label="Tone"
@@ -291,15 +310,11 @@ const ControlScreen: React.FC = () => {
             </View>
           </ScrollView>
 
-          {/* --- MODALS (Unchanged) --- */}
-          {/* ... (RemoteModal) ... */}
+          {/* --- MODALS --- */}
           <RemoteModal
             visible={modalVisible === "Remote"}
             onClose={closeModal}
           />
-
-          {/* Note: Props for AttenuationModal are unchanged, as the state
-               variables (e.g., frontLeft) are already the indices */}
           <AttenuationModal
             visible={modalVisible === "Attenuation"}
             onClose={closeModal}
@@ -316,7 +331,6 @@ const ControlScreen: React.FC = () => {
             rearRight={rearRight}
             setRearRight={setRearRight}
           />
-          {/* ... (PresetModal) ... */}
           <PresetModal
             visible={modalVisible === "Presets"}
             onClose={handleClosePresetModal}
@@ -330,7 +344,8 @@ const ControlScreen: React.FC = () => {
 
 export default ControlScreen;
 
-// --- 6. MODIFIED: STYLES (Simplified layout styles) ---
+// --- STYLES ---
+// ... (All style definitions remain unchanged)
 const getScreenStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     safeArea: {
@@ -355,23 +370,20 @@ const getScreenStyles = (colors: typeof lightColors) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    // Style for rows with two knobs, spaced evenly
     knobRowApart: {
       flexDirection: "row",
-      justifyContent: "space-around", // This will space them evenly
+      justifyContent: "space-around",
       alignItems: "center",
       width: "100%",
-      paddingVertical: 10, // Add some padding
+      paddingVertical: 10,
     },
-    // Style for rows with one knob, centered
     knobRowCenter: {
       flexDirection: "row",
       justifyContent: "center",
       alignItems: "center",
       width: "100%",
-      paddingVertical: 10, // Add some padding
+      paddingVertical: 10,
     },
-    // REMOVED knobRowRight and knobRowBottom
     switchesSection: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -385,7 +397,6 @@ const getScreenStyles = (colors: typeof lightColors) =>
     },
   });
 
-// ... (getModalButtonStyles and getSwitchStyles remain unchanged)
 const getModalButtonStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     modalButton: {

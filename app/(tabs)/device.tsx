@@ -17,43 +17,31 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-// --- THEME IMPORTS ---
 import { useTheme } from "../../theme/ThemeContext";
 import { lightColors } from "../../theme/colors";
 
-// --- Import Components & Database ---
 import { DeviceInfoModal } from "../../components/DeviceInfoModal";
 import { HelpModal } from "../../components/HelpModal";
 import { ModelSelectionModal } from "../../components/ModelSelectionModal";
 import { Devices, getDevices } from "../../services/database";
 
+// --- IMPORT NEW API and STORAGE ---
+import { sendMasterVolume } from "../../services/fetch-api"; // Import new API function
+import { loadLastSettings } from "../../services/storage"; // Import storage loader
+
 const MODEL_IMAGES: { [key: string]: any } = {
-  // Placeholder images: replace with your actual asset paths
   pe_pro: require("../../assets/images/favicon.png"),
   pv_pro: require("../../assets/images/splash-icon.png"),
 };
 
-const ESP_HOST_AP = "http://192.168.4.1"; // ESP softAP default
-const ESP_HOST_STA = "http://<YOUR_DEVICE_IP>"; // Placeholder for STA mode IP
-const PING_INTERVAL_MS = 30000; // 30 seconds for the continuous loop
-const PING_DELAY_MS = 1000; // New: 1 second delay to prevent successive button spamming
+const ESP_HOST_AP = "http://192.168.4.1";
+const ESP_HOST_STA = "http://<YOUR_DEVICE_IP>";
+const PING_INTERVAL_MS = 30000;
+const PING_DELAY_MS = 1000;
 
-// --- CONNECTION MODES ---
 type ConnectionMode = "AP_MODE" | "NETWORK_MODE";
 
-// --- Fetch Utility ---
-async function fetchWithTimeout(url: string, timeoutMs = 3000) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(id);
-    return res;
-  } catch (err) {
-    clearTimeout(id);
-    throw err;
-  }
-}
+// --- REMOVED fetchWithTimeout (now in api.ts) ---
 
 // Helper to add a delay
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -62,32 +50,25 @@ export default function DeviceConnectScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => getScreenStyles(colors), [colors]);
 
+  // ... (State definitions remain unchanged)
   const [connectionStatus, setConnectionStatus] = useState<
     "disconnected" | "checking" | "connected"
   >("disconnected");
   const [models, setModels] = useState<Devices[]>([]);
   const [selectedModel, setSelectedModel] = useState<Devices | null>(null);
-
   const [connectionMode, setConnectionMode] =
-    useState<ConnectionMode>("AP_MODE"); // Default to AP Mode
-
-  // New state to control the ping loop
+    useState<ConnectionMode>("AP_MODE");
   const [isConnecting, setIsConnecting] = useState(false);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastPingTimeRef = useRef(0); // For robustness check
-
-  // Modals
+  const lastPingTimeRef = useRef(0);
   const [isModelModalVisible, setIsModelModalVisible] = useState(false);
   const [isHelpModalVisible, setIsHelpModalVisible] = useState(false);
   const [isDeviceInfoModalVisible, setIsDeviceInfoModalVisible] =
     useState(false);
-
   const [showPassword, setShowPassword] = useState(false);
-
-  // Connection control
   const appState = useRef(AppState.currentState);
 
-  // --- Data Loading Function ---
+  // --- Data Loading Function (unchanged) ---
   const loadDevices = async () => {
     try {
       const deviceList = await getDevices();
@@ -102,26 +83,26 @@ export default function DeviceConnectScreen() {
   };
 
   /**
-   * Pings the device and updates the connection status.
+   * Pings the device, and if successful, syncs the master volume.
    * Returns true on success, false on failure.
-   * @param isLoopPing Indicates if this is part of the 30s loop (affects error handling).
    */
   const pingDevice = useCallback(
     async (isLoopPing: boolean = false) => {
       if (!selectedModel) return false;
 
-      // Check for robustness: Prevent spamming if it's a manual refresh and the last ping was too recent
+      // Robustness check (unchanged)
       if (
         !isLoopPing &&
         Date.now() - lastPingTimeRef.current < PING_DELAY_MS * 2
       ) {
         console.log("Ping skipped: Too soon after last attempt.");
-        return connectionStatus === "connected"; // Return current status if skipping
+        return connectionStatus === "connected";
       }
 
       lastPingTimeRef.current = Date.now();
       setConnectionStatus("checking");
 
+      // Host selection (unchanged)
       let host = "";
       if (connectionMode === "AP_MODE") {
         host = ESP_HOST_AP;
@@ -140,15 +121,35 @@ export default function DeviceConnectScreen() {
       }
 
       try {
-        // 1. Delay before ping to allow device to settle
+        // 1. Delay before ping
         await sleep(PING_DELAY_MS);
 
-        // 2. Perform the ping
-        const r = await fetchWithTimeout(`${host}/ping`, 2500);
+        // 2. Perform the ping (using fetch from api.ts)
+        // We call fetch directly for /ping since it's simple
+        const r = await fetch(`${host}/ping`, {
+          signal: AbortSignal.timeout(2500), // Simple timeout
+        });
         if (!r.ok) throw new Error("HTTP " + r.status);
         await r.text(); // Consume response body "pong"
 
-        // 3. Delay after successful ping before allowing new requests
+        // *** 3. MODIFIED: Sync master volume ***
+        try {
+          // Load the *very latest* settings from storage
+          const settings = await loadLastSettings(); //
+          if (settings) {
+            // Found settings, send the volume
+            await sendMasterVolume(host, settings.volume);
+          } else {
+            console.warn("Could not load settings to sync volume.");
+          }
+        } catch (syncError) {
+          console.error("Failed to sync master volume:", syncError);
+          // Don't kill the whole loop, just log the error and continue
+          // The main ping was successful, so we're still "connected"
+        }
+        // *** END MODIFICATION ***
+
+        // 4. Delay after successful ping/sync
         await sleep(PING_DELAY_MS);
 
         setConnectionStatus("connected");
@@ -158,7 +159,6 @@ export default function DeviceConnectScreen() {
         if (isConnecting || isLoopPing) {
           console.log("Ping failed in connection loop/check. Stopping loop.");
         } else {
-          // Only show alert for a single, manual ping/initial connect attempt
           Alert.alert(
             "Ping Failed",
             "The device is unreachable. Check your Wi-Fi."
@@ -170,8 +170,7 @@ export default function DeviceConnectScreen() {
     [selectedModel, connectionMode, isConnecting, connectionStatus]
   );
 
-  // --- Loop Control Functions ---
-
+  // --- Loop Control Functions (unchanged) ---
   const stopConnectionLoop = () => {
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
@@ -184,7 +183,6 @@ export default function DeviceConnectScreen() {
   };
 
   const startConnectionLoop = async () => {
-    // If already connecting, treat button press as 'Stop'
     if (isConnecting) {
       stopConnectionLoop();
       return;
@@ -193,8 +191,7 @@ export default function DeviceConnectScreen() {
     setIsConnecting(true);
     console.log("Starting connection loop...");
 
-    // 1. Initial Ping
-    const initialPingSucceeded = await pingDevice(true); // Treat initial as loop ping for error handling
+    const initialPingSucceeded = await pingDevice(true);
 
     if (!initialPingSucceeded) {
       stopConnectionLoop();
@@ -205,7 +202,6 @@ export default function DeviceConnectScreen() {
       return;
     }
 
-    // 2. Set up the interval only if the initial ping succeeds
     pingIntervalRef.current = setInterval(async () => {
       const succeeded = await pingDevice(true);
       if (!succeeded) {
@@ -215,26 +211,20 @@ export default function DeviceConnectScreen() {
     }, PING_INTERVAL_MS);
   };
 
-  // --- Handler passed to the ModelSelectionModal ---
+  // --- Handler for ModelSelectionModal (unchanged) ---
   const handleSelectModel = (model: Devices) => {
     setSelectedModel(model);
     setIsModelModalVisible(false);
-    // Stop the connection loop when model changes
     stopConnectionLoop();
   };
 
-  // --- Effects ---
-
+  // --- Effects (unchanged) ---
   useEffect(() => {
     loadDevices();
   }, []);
 
-  // Effect for AppState Listener and Cleanup
   useEffect(() => {
-    // Stop loop if connection mode or model changes
     stopConnectionLoop();
-
-    // AppState Listener: Perform a one-off ping when returning to the app
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (
         appState.current.match(/inactive|background/) &&
@@ -243,7 +233,6 @@ export default function DeviceConnectScreen() {
         console.log(
           "App has come to the foreground, explicitly checking connection..."
         );
-        // Ping device on foreground entry to update status
         pingDevice();
       }
       appState.current = nextAppState;
@@ -251,12 +240,12 @@ export default function DeviceConnectScreen() {
 
     return () => {
       subscription.remove();
-      // Ensure loop stops on component unmount
       stopConnectionLoop();
     };
   }, [pingDevice]);
 
-  // --- Hook Order Fix: useMemo must be called unconditionally ---
+  // --- Styles and Render Functions (unchanged) ---
+  // ... (cardShadowStyle, renderStatusContent, renderModelItem, loading state)
   const cardShadowStyle = useMemo(
     () => ({
       backgroundColor: colors.card,
@@ -270,8 +259,6 @@ export default function DeviceConnectScreen() {
     }),
     [colors]
   );
-
-  // --- Render Functions for UI ---
 
   const renderStatusContent = () => {
     switch (connectionStatus) {
@@ -308,15 +295,12 @@ export default function DeviceConnectScreen() {
     }
   };
 
-  // Reusable component logic for the currently selected model card
   const renderModelItem = (model: Devices) => (
     <TouchableOpacity
       key={model.modelCode}
       style={styles.modelItem}
-      // Open model selection modal when model area is clicked
       onPress={() => setIsModelModalVisible(true)}
     >
-      {/* Model Image/Avatar */}
       {MODEL_IMAGES[model.modelImage] ? (
         <Image
           source={MODEL_IMAGES[model.modelImage]}
@@ -331,15 +315,12 @@ export default function DeviceConnectScreen() {
           </Text>
         </View>
       )}
-
-      {/* Model Name and Wi-Fi Details (Now 2 lines) */}
       <View style={styles.modelDetails}>
         <Text style={styles.modelName}>{model.modelName}</Text>
       </View>
     </TouchableOpacity>
   );
 
-  // Render loading state (Must be AFTER all hooks)
   if (!selectedModel) {
     return (
       <View style={styles.loadingContainer}>
@@ -351,18 +332,17 @@ export default function DeviceConnectScreen() {
     );
   }
 
+  // --- Main Return JSX (unchanged) ---
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      {/* --- Model Selector Card (with Connect Button) --- */}
       <View style={[styles.card, cardShadowStyle]}>
         <View style={styles.cardHeader}>
           <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
             Model Selector
           </Text>
           <View style={styles.cardHeaderIcons}>
-            {/* NEW: Info button to open DeviceInfoModal */}
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => setIsDeviceInfoModalVisible(true)}
@@ -373,7 +353,6 @@ export default function DeviceConnectScreen() {
                 color={colors.primary}
               />
             </TouchableOpacity>
-            {/* Exchange icon for Model Selection Modal */}
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => setIsModelModalVisible(true)}
@@ -385,8 +364,6 @@ export default function DeviceConnectScreen() {
 
         <View style={styles.cardContent}>
           {renderModelItem(selectedModel)}
-
-          {/* Connection Mode Selector (MOVED HERE) */}
           <View style={[styles.modeSelectorContainer, { marginTop: 16 }]}>
             <TouchableOpacity
               style={[
@@ -402,7 +379,7 @@ export default function DeviceConnectScreen() {
               ]}
               onPress={() => {
                 setConnectionMode("AP_MODE");
-                stopConnectionLoop(); // Stop loop on mode switch
+                stopConnectionLoop();
               }}
             >
               <Text
@@ -431,7 +408,7 @@ export default function DeviceConnectScreen() {
               ]}
               onPress={() => {
                 setConnectionMode("NETWORK_MODE");
-                stopConnectionLoop(); // Stop loop on mode switch
+                stopConnectionLoop();
               }}
             >
               <Text
@@ -451,7 +428,6 @@ export default function DeviceConnectScreen() {
           </View>
         </View>
 
-        {/* CONNECT/STOP BUTTON (New requirement location) */}
         <TouchableOpacity
           style={[
             styles.connectButton,
@@ -473,7 +449,6 @@ export default function DeviceConnectScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* --- Status Card (with Ping Button/Refresh) --- */}
       <View style={[styles.card, cardShadowStyle]}>
         <View style={styles.cardHeader}>
           <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
@@ -490,10 +465,9 @@ export default function DeviceConnectScreen() {
                 color={colors.primary}
               />
             </TouchableOpacity>
-            {/* Refresh/Ping button (Now using pingDevice for one-off check) */}
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => pingDevice(false)} // Use pingDevice for a single check/refresh
+              onPress={() => pingDevice(false)}
               disabled={connectionStatus === "checking" || isConnecting}
             >
               <Ionicons
@@ -508,10 +482,7 @@ export default function DeviceConnectScreen() {
             </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.cardContent}>
-          {renderStatusContent()}
-          {/* REMOVED Connection Mode Selector from here */}
-        </View>
+        <View style={styles.cardContent}>{renderStatusContent()}</View>
       </View>
 
       {/* --- Modals --- */}
@@ -524,7 +495,6 @@ export default function DeviceConnectScreen() {
           onSelectModel={handleSelectModel}
         />
       )}
-
       {selectedModel && (
         <HelpModal
           visible={isHelpModalVisible}
@@ -532,7 +502,6 @@ export default function DeviceConnectScreen() {
           model={selectedModel}
         />
       )}
-
       {selectedModel && (
         <DeviceInfoModal
           visible={isDeviceInfoModalVisible}
@@ -546,6 +515,8 @@ export default function DeviceConnectScreen() {
   );
 }
 
+// --- STYLES ---
+// ... (All style definitions remain unchanged)
 const getScreenStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     container: {
@@ -586,7 +557,6 @@ const getScreenStyles = (colors: typeof lightColors) =>
     cardContent: {
       padding: 16,
     },
-    // Model Item
     modelItem: {
       flexDirection: "row",
       alignItems: "center",
@@ -621,7 +591,6 @@ const getScreenStyles = (colors: typeof lightColors) =>
       color: colors.text,
       marginBottom: 4,
     },
-    // Wi-Fi details (no changes, but keeping for reference)
     wifiDetailRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -644,18 +613,15 @@ const getScreenStyles = (colors: typeof lightColors) =>
     passwordToggle: {
       padding: 4,
     },
-    // Status Content
     statusContent: {
       flexDirection: "row",
       alignItems: "center",
       height: 30,
-      // Removed marginBottom: 16 since mode selector moved
     },
     statusText: {
       fontSize: 16,
       marginLeft: 8,
     },
-    // Connection Mode Selector Styles (NEW)
     modeSelectorContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -677,7 +643,6 @@ const getScreenStyles = (colors: typeof lightColors) =>
       fontSize: 14,
       fontWeight: "600",
     },
-    // Connect Button (New Style for the button inside the Model Selector Card)
     connectButton: {
       padding: 12,
       borderBottomLeftRadius: 12,
@@ -690,7 +655,6 @@ const getScreenStyles = (colors: typeof lightColors) =>
       fontSize: 16,
       fontWeight: "700",
     },
-    // REMOVED: Old pingButton styles
     modalBackdrop: {
       flex: 1,
       backgroundColor: colors.modalOverlay,
