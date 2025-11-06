@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useContext,
@@ -8,56 +7,66 @@ import React, {
 } from "react";
 import { useColorScheme } from "react-native";
 import { darkColors, lightColors } from "./colors";
+// --- 1. IMPORT all storage functions ---
+import {
+  loadHapticsSetting,
+  loadThemeSetting,
+  saveHapticsSetting,
+  saveThemeSetting,
+} from "../services/storage"; // Assuming storage.ts is in ../services/
 
-// 1. Define the types for the user's selection
+// Define the types for the user's selection
 export type ThemeMode = "auto" | "light" | "dark";
-const STORAGE_KEY = "APP_THEME_MODE";
+// const THEME_STORAGE_KEY = "APP_THEME_MODE"; // --- REMOVED (now in storage.ts)
 
-// 2. Define the shape of your context's value
+// Define the shape of your context's value
 type Theme = {
   isDark: boolean;
   colors: typeof lightColors;
-  mode: ThemeMode; // The user's stored preference
-  setMode: (mode: ThemeMode) => void; // Function to change the preference
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
+  isHapticsEnabled: boolean;
+  setHapticsEnabled: (isEnabled: boolean) => void;
 };
 
 const ThemeContext = createContext<Theme | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // 3. Store the user's *preference* (e.g., 'auto')
   const [mode, setMode] = useState<ThemeMode>("auto");
+  const [isHapticsEnabled, setIsHapticsEnabled] = useState(true);
 
-  // 4. Get the *system's* theme
   const systemScheme = useColorScheme();
 
-  // 5. Load the stored preference from storage on app launch
+  // Load all stored preferences from storage on app launch
   useEffect(() => {
-    const loadMode = async () => {
+    const loadSettings = async () => {
       try {
-        const storedMode = (await AsyncStorage.getItem(
-          STORAGE_KEY
-        )) as ThemeMode;
-        if (storedMode) {
-          setMode(storedMode);
-        }
+        // --- 2. MODIFIED: Load Theme via storage function ---
+        const storedMode = await loadThemeSetting();
+        setMode(storedMode);
+
+        // Load Haptics
+        const haptics = await loadHapticsSetting();
+        setIsHapticsEnabled(haptics);
       } catch (e) {
-        console.error("Failed to load theme mode from storage", e);
+        console.error("Failed to load settings from storage", e);
       }
     };
-    loadMode();
+    loadSettings();
   }, []);
 
-  // 6. Create the function to change and *save* the preference
+  // --- 3. MODIFIED: Function to save theme setting via storage function ---
   const updateMode = (newMode: ThemeMode) => {
-    try {
-      AsyncStorage.setItem(STORAGE_KEY, newMode);
-      setMode(newMode);
-    } catch (e) {
-      console.error("Failed to save theme mode to storage", e);
-    }
+    saveThemeSetting(newMode); // Save to storage
+    setMode(newMode); // Update state
   };
 
-  // 7. This is the core logic!
+  // Function to save haptics setting via storage function
+  const updateHaptics = (isEnabled: boolean) => {
+    saveHapticsSetting(isEnabled); // Save to storage
+    setIsHapticsEnabled(isEnabled); // Update state
+  };
+
   // Determine if dark mode is *actually* active
   const isDark = useMemo(() => {
     if (mode === "auto") {
@@ -66,15 +75,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return mode === "dark";
   }, [mode, systemScheme]);
 
-  // 8. Memoize the final theme object
+  // Memoize the final theme object
   const theme = useMemo(
     () => ({
       isDark,
       colors: isDark ? darkColors : lightColors,
       mode,
       setMode: updateMode,
+      isHapticsEnabled,
+      setHapticsEnabled: updateHaptics,
     }),
-    [isDark, mode]
+    [isDark, mode, isHapticsEnabled]
   );
 
   return (
@@ -82,7 +93,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Custom hook remains the same, but now returns the new shape
+// Custom hook remains the same
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {

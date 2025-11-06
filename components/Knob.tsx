@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo } from "react";
+import * as Haptics from "expo-haptics";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   Image,
   ImageSourcePropType,
@@ -9,20 +10,21 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
-  useAnimatedStyle, // Kept for the rotation animation
+  useAnimatedStyle,
   useSharedValue,
 } from "react-native-reanimated";
 
 // --- Theme Imports ---
 import { useTheme } from "../theme/ThemeContext";
 import { lightColors } from "../theme/colors";
+// import { useHaptics } from "../theme/HapticsContext"; // --- 1. REMOVED this incorrect line ---
 
 // --- Prop Types (Unchanged) ---
 type KnobProps = {
   size: number;
   label: string;
-  valueIndex: number; // CHANGED: This is now the step index (e.g., 0, 1, 2...)
-  onIndexChange?: (valueIndex: number) => void; // CHANGED: This returns the step index
+  valueIndex: number;
+  onIndexChange?: (valueIndex: number) => void;
   dialBaseImage?: ImageSourcePropType;
   indicatorImage?: ImageSourcePropType;
   min?: number;
@@ -104,8 +106,8 @@ const getIndexFromAngle = (
 export const Knob: React.FC<KnobProps> = ({
   size,
   label,
-  valueIndex, // CHANGED
-  onIndexChange, // CHANGED
+  valueIndex,
+  onIndexChange,
   dialBaseImage,
   indicatorImage,
   min = 0,
@@ -113,27 +115,39 @@ export const Knob: React.FC<KnobProps> = ({
   step = 1,
   valueSuffix = "",
 }) => {
-  const { colors, isDark } = useTheme();
+  // --- 2. FIXED: Get haptics setting from useTheme ---
+  const { colors, isDark, isHapticsEnabled } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   const CENTER = { x: size / 2, y: size / 2 };
 
-  // This `actualValue` is on the JS thread and updates when `valueIndex` prop changes
   const actualValue = useMemo(
     () => getValueFromIndex(valueIndex, min, step),
     [valueIndex, min, step]
   );
-
-  // This `rotation` is on the UI thread for the gesture
   const rotation = useSharedValue(
     getAngleFromActualValue(actualValue, min, max)
   );
 
-  // This effect syncs the prop change to the UI thread (for the indicator)
+  const previousIndex = useRef(valueIndex);
+
   useEffect(() => {
     const newActualValue = getValueFromIndex(valueIndex, min, step);
     rotation.value = getAngleFromActualValue(newActualValue, min, max);
+    previousIndex.current = valueIndex;
   }, [valueIndex, min, max, step, rotation]);
+
+  // --- 3. This haptics logic is now correct ---
+  const handleIndexChange = (newIndex: number) => {
+    if (onIndexChange) {
+      onIndexChange(newIndex);
+    }
+
+    if (isHapticsEnabled && newIndex !== previousIndex.current) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    previousIndex.current = newIndex;
+  };
 
   // --- panGesture (Unchanged) ---
   const panGesture = Gesture.Pan()
@@ -172,10 +186,9 @@ export const Knob: React.FC<KnobProps> = ({
 
       rotation.value = newAngle;
 
-      // Call prop with the *step index*
       if (onIndexChange) {
         const newIndex = getIndexFromAngle(rotation.value, min, max, step);
-        runOnJS(onIndexChange)(newIndex);
+        runOnJS(handleIndexChange)(newIndex);
       }
     });
 
@@ -183,15 +196,12 @@ export const Knob: React.FC<KnobProps> = ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
 
-  // *** --- THIS IS THE FIX --- ***
-  // 1. REMOVED the `useDerivedValue` for `derivedActualValue` and `valueText`.
-  // 2. CREATED a new `valueText` using `useMemo`. This variable is on the
-  //    JS thread and will update *whenever `actualValue` changes*.
+  // Text value calculation (Unchanged)
   const valueText = useMemo(() => {
-    const val = actualValue; // Use the JS-thread `actualValue`
+    const val = actualValue;
     const decimals = step < 1 ? 1 : 0;
     return `${val.toFixed(decimals)}${valueSuffix}`;
-  }, [actualValue, step, valueSuffix]); // Dependencies
+  }, [actualValue, step, valueSuffix]);
 
   return (
     <View style={styles.container}>
@@ -218,13 +228,12 @@ export const Knob: React.FC<KnobProps> = ({
 
       <Text style={styles.labelText}>{label.toUpperCase()}</Text>
 
-      {/* 3. Render the new JS-thread `valueText` variable. */}
       <Text style={styles.valueText}>{valueText}</Text>
     </View>
   );
 };
 
-// --- Dynamic Style Factory Function (No Change) ---
+// --- Styles (Unchanged) ---
 const getStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     container: {

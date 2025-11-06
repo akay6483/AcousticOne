@@ -448,7 +448,7 @@ const getModalStyles = (colors: typeof lightColors) =>
       backgroundColor: colors.modalOverlay,
     },
     container: {
-      height: "80%",
+      height: "85%",
       backgroundColor: colors.modalBackground,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,

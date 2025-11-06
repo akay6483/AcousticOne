@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import React, { useMemo } from "react";
 import {
   Modal,
@@ -86,12 +86,7 @@ export const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({
         >
           {/* --- Header (Consistent with PresetModal) --- */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <MaterialCommunityIcons
-              name="format-list-bulleted-square" // Icon similar to preset-screenshot.jpg
-              size={25}
-              color={colors.icon}
-              style={styles.headerIcon}
-            />
+            <FontAwesome name="exchange" size={20} color={colors.icon} />
             <Text style={styles.title}>Model</Text>
             <Pressable onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={28} color={colors.icon} />
@@ -121,7 +116,7 @@ const getModalStyles = (colors: typeof lightColors) =>
       backgroundColor: colors.modalOverlay,
     },
     container: {
-      height: "80%", // Matches PresetModal height
+      height: "85%", // Matches PresetModal height
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 20,
