@@ -6,7 +6,6 @@ import {
 } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  AppState, //
   Dimensions,
   Pressable,
   SafeAreaView,
@@ -25,11 +24,54 @@ import { ModeSelector } from "../../components/ModeSelector";
 import { PresetModal } from "../../components/PresetModal";
 import { RemoteModal } from "../../components/RemoteModal";
 import { Preset } from "../../services/database";
-import { loadLastSettings, saveLastSettings } from "../../services/storage";
+// --- MODIFIED: Import new device service ---
+import * as deviceService from "../../services/deviceService";
+// --- MODIFIED: Added LastSettings import ---
+import {
+  LastSettings,
+  loadLastSettings,
+  saveLastSettings,
+} from "../../services/storage";
 import { useTheme } from "../../theme/ThemeContext";
 import { lightColors } from "../../theme/colors";
 
 const { width } = Dimensions.get("window");
+const DEBOUNCE_SAVE_MS = 500; // Debounce for *saving* to storage only
+const INPUT_MODES_MAP = ["AUX1", "AUX2", "AUX3", "USB/BT", "5.1 Analogue"]; // Make sure this matches service
+
+// --- Reusable Debounce Hook ---
+// Defined *outside* the component to fix React errors
+const useDebouncedApiCall = (
+  value: any,
+  apiFunction: (host: string, value: any) => Promise<void>,
+  host: string // Host is now passed in
+) => {
+  // Use 'number' for React Native timers, not 'NodeJS.Timeout'
+  const timerRef = useRef<number | null>(null);
+  const initialMountRef = useRef(true);
+
+  useEffect(() => {
+    if (initialMountRef.current) {
+      initialMountRef.current = false;
+      return; // Don't fire on mount
+    }
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    timerRef.current = setTimeout(() => {
+      console.log(`Sending API call for value: ${value}`);
+      apiFunction(host, value).catch((e) =>
+        console.error("API call failed", e)
+      );
+    }, 300); // 300ms debounce
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [value, apiFunction, host]);
+};
 
 // ... (SwitchControl and ModalButton components remain unchanged)
 type SwitchControlProps = {
@@ -100,7 +142,7 @@ const ControlScreen: React.FC = () => {
   const closeModal = () => setModalVisible(null);
 
   // --- Apply Settings Function ---
-  const applySettings = (settings: Preset["preset_values"]) => {
+  const applySettings = (settings: LastSettings) => {
     setVolume(settings.volume);
     setBass(settings.bass);
     setTreble(settings.treble);
@@ -121,12 +163,14 @@ const ControlScreen: React.FC = () => {
   const handleClosePresetModal = (preset?: Preset) => {
     if (preset && preset.preset_values) {
       applySettings(preset.preset_values);
+      // --- When a preset is applied, queue all settings ---
+      deviceService.sendAllParameters(preset.preset_values);
     }
     closeModal();
   };
 
   // --- Current Settings Object ---
-  const currentSettings: Preset["preset_values"] = {
+  const currentSettings: LastSettings = {
     volume,
     bass,
     treble,
@@ -155,37 +199,92 @@ const ControlScreen: React.FC = () => {
     load();
   }, []);
 
-  // --- Save settings on change AND background ---
-  const settingsRef = useRef(currentSettings);
+  // --- *** NEW: Debounced Save to Storage *** ---
+  // This saves to storage 500ms after you stop changing *anything*.
+  const debounceSaveTimerRef = useRef<number | null>(null);
+  const isMountedRef = useRef(false);
 
-  // *** MODIFIED ***
-  // This effect now saves settings to AsyncStorage on *every* change.
-  // This allows the device.tsx loop to read the most up-to-date values.
   useEffect(() => {
-    settingsRef.current = currentSettings;
-    // Save settings on *every* change
-    saveLastSettings(currentSettings);
-  }, [currentSettings]); // This dependency array is key
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
 
-  // This effect still handles saving when the app is backgrounded/closed
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "background" || nextAppState === "inactive") {
-        console.log("App going to background, saving settings...");
-        saveLastSettings(settingsRef.current);
-      }
-    });
+    if (debounceSaveTimerRef.current) {
+      clearTimeout(debounceSaveTimerRef.current);
+    }
+
+    debounceSaveTimerRef.current = setTimeout(() => {
+      console.log("Debounce timer fired. Saving settings to storage...");
+      saveLastSettings(currentSettings);
+    }, DEBOUNCE_SAVE_MS);
 
     return () => {
-      subscription.remove();
-      console.log("App unmounting, saving settings...");
-      saveLastSettings(settingsRef.current);
+      if (debounceSaveTimerRef.current) {
+        clearTimeout(debounceSaveTimerRef.current);
+      }
     };
-  }, []); // Empty array ensures this runs only once
+  }, [currentSettings]); // This dependency array is key
 
   // --- Knob Sizes ---
   const LARGE_KNOB_SIZE = width * 0.45;
   const SMALL_KNOB_SIZE = width * 0.3;
+
+  // --- *** NEW: Simplified State Handlers *** ---
+  // These now just update state AND call the queue.
+
+  const handleVolumeChange = (value: number) => {
+    setVolume(value);
+    deviceService.sendMasterVolume(value);
+  };
+  const handleBassChange = (value: number) => {
+    setBass(value);
+    deviceService.sendBass(value);
+  };
+  const handleTrebleChange = (value: number) => {
+    setTreble(value);
+    deviceService.sendTreble(value);
+  };
+  const handleMidChange = (value: number) => {
+    setMid(value);
+    deviceService.sendMid(value);
+  };
+  const handleToneChange = (value: boolean) => {
+    setTone(value);
+    deviceService.sendTone(value ? 1 : 0);
+  };
+  const handleSurroundChange = (value: boolean) => {
+    setSurround(value);
+    deviceService.sendSurround(value ? 1 : 0);
+  };
+  const handleModeChange = (value: string) => {
+    setMode(value);
+    const modeIndex = INPUT_MODES_MAP.indexOf(value);
+    if (modeIndex > -1) {
+      deviceService.sendInput(modeIndex);
+    }
+  };
+  // Attenuation Modal Handlers
+  const handleFLChange = (value: number) => {
+    setFrontLeft(value);
+    deviceService.sendFrontLeft(value);
+  };
+  const handleFRChange = (value: number) => {
+    setFrontRight(value);
+    deviceService.sendFrontRight(value);
+  };
+  const handleCChange = (value: number) => {
+    setCenter(value);
+    deviceService.sendCenter(value);
+  };
+  const handleRLChange = (value: number) => {
+    setRearLeft(value);
+    deviceService.sendRearLeft(value);
+  };
+  const handleRRChange = (value: number) => {
+    setRearRight(value);
+    deviceService.sendRearRight(value);
+  };
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -235,16 +334,15 @@ const ControlScreen: React.FC = () => {
               />
             </ScrollView>
 
-            <ModeSelector mode={mode} onModeChange={setMode} />
+            <ModeSelector mode={mode} onModeChange={handleModeChange} />
 
-            {/* --- KNOBS SECTION --- */}
             <View style={styles.knobsSection}>
               <View style={styles.knobRowCenter}>
                 <Knob
                   label="Volume"
                   size={LARGE_KNOB_SIZE}
                   valueIndex={volume}
-                  onIndexChange={setVolume}
+                  onIndexChange={handleVolumeChange}
                   min={0}
                   max={79}
                   step={1}
@@ -258,7 +356,7 @@ const ControlScreen: React.FC = () => {
                   label="Bass"
                   size={SMALL_KNOB_SIZE}
                   valueIndex={bass}
-                  onIndexChange={setBass}
+                  onIndexChange={handleBassChange}
                   min={-14}
                   max={14}
                   step={2}
@@ -270,7 +368,7 @@ const ControlScreen: React.FC = () => {
                   label="Treble"
                   size={SMALL_KNOB_SIZE}
                   valueIndex={treble}
-                  onIndexChange={setTreble}
+                  onIndexChange={handleTrebleChange}
                   min={-14}
                   max={14}
                   step={2}
@@ -284,7 +382,7 @@ const ControlScreen: React.FC = () => {
                   label="Mid"
                   size={SMALL_KNOB_SIZE}
                   valueIndex={mid}
-                  onIndexChange={setMid}
+                  onIndexChange={handleMidChange}
                   min={-14}
                   max={14}
                   step={2}
@@ -300,12 +398,12 @@ const ControlScreen: React.FC = () => {
               <SwitchControl
                 label="Tone"
                 value={tone}
-                onValueChange={setTone}
+                onValueChange={handleToneChange}
               />
               <SwitchControl
                 label="Surround Enhance"
                 value={surround}
-                onValueChange={setSurround}
+                onValueChange={handleSurroundChange}
               />
             </View>
           </ScrollView>
@@ -319,17 +417,17 @@ const ControlScreen: React.FC = () => {
             visible={modalVisible === "Attenuation"}
             onClose={closeModal}
             frontLeft={frontLeft}
-            setFrontLeft={setFrontLeft}
+            setFrontLeft={handleFLChange}
             frontRight={frontRight}
-            setFrontRight={setFrontRight}
+            setFrontRight={handleFRChange}
             subwoofer={subwoofer}
-            setSubwoofer={setSubwoofer}
+            setSubwoofer={setSubwoofer} // No API call for subwoofer
             center={center}
-            setCenter={setCenter}
+            setCenter={handleCChange}
             rearLeft={rearLeft}
-            setRearLeft={setRearLeft}
+            setRearLeft={handleRLChange}
             rearRight={rearRight}
-            setRearRight={setRearRight}
+            setRearRight={handleRRChange}
           />
           <PresetModal
             visible={modalVisible === "Presets"}
@@ -345,7 +443,6 @@ const ControlScreen: React.FC = () => {
 export default ControlScreen;
 
 // --- STYLES ---
-// ... (All style definitions remain unchanged)
 const getScreenStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     safeArea: {

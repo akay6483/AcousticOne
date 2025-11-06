@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"; // Added MaterialCommunityIcons
+import { Ionicons } from "@expo/vector-icons"; // Added MaterialCommunityIcons
 import React, { useMemo } from "react";
 import {
   Image,
@@ -59,11 +59,10 @@ export const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({
         >
           {/* --- Header (Consistent with PresetModal) --- */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <MaterialCommunityIcons
-              name="server-network" // Appropriate icon for device details
-              size={25}
+            <Ionicons
+              name="information-circle-outline"
+              size={28}
               color={colors.icon}
-              style={styles.headerIcon}
             />
             <Text style={[styles.title, { color: colors.text }]}>
               Device Details
@@ -178,7 +177,7 @@ const getDeviceInfoModalStyles = (colors: typeof lightColors) =>
       backgroundColor: colors.modalOverlay,
     },
     container: {
-      height: "80%", // Taller to fit more info
+      height: "85%", // Taller to fit more info
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 20,

@@ -12,9 +12,8 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../theme/ThemeContext"; // Import global theme
 import { lightColors } from "../theme/colors"; // Import type
 
-// --- Local themes REMOVED ---
-// const theme = { ... };
-// const remoteTheme = { ... };
+// --- 1. IMPORT HAPTICS ---
+import * as Haptics from "expo-haptics";
 
 // --- Button Images (no change) ---
 const buttonImages = {
@@ -46,14 +45,26 @@ const RemoteButton: React.FC<RemoteButtonProps> = ({
   buttonType = "default",
   textColor,
 }) => {
-  const { colors } = useTheme(); // Button gets its own theme
+  // --- 2. GET HAPTICS SETTING FROM USE THEME ---
+  const { colors, isHapticsEnabled } = useTheme(); // Button gets its own theme
   const styles = useMemo(() => getButtonStyles(colors), [colors]); // Memoized styles
   const sourceImage = buttonImages[buttonType];
+
+  // --- 3. CREATE A WRAPPED PRESS HANDLER ---
+  const handlePress = () => {
+    // Fire haptics if enabled
+    if (isHapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    // Call the original onPress function
+    onPress();
+  };
 
   return (
     <Pressable
       style={({ pressed }) => [styles.button, { opacity: pressed ? 0.75 : 1 }]}
-      onPress={onPress}
+      // --- 4. USE THE NEW WRAPPED HANDLER ---
+      onPress={handlePress}
     >
       <ImageBackground
         source={sourceImage}
