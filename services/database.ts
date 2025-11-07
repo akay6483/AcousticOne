@@ -250,7 +250,8 @@ export type Devices = {
   ssid: string;
   password: string;
   desc: string;
-  help_text: string;
+  apHost: string;
+  staHost: string;
 };
 
 const INITIAL_DEVICES: Devices[] = [
@@ -261,16 +262,8 @@ const INITIAL_DEVICES: Devices[] = [
     ssid: "PE PRO 38B14",
     password: "PrasadDigital",
     desc: "Placeholder",
-    help_text: "Placeholder",
-  },
-  {
-    modelCode: "27546",
-    modelName: "PE SERIES 1",
-    modelImage: "pe_pro",
-    ssid: "PE SERIES 20154",
-    password: "userpass",
-    desc: "Placeholder",
-    help_text: "Placeholder",
+    apHost: "http://192.168.4.1",
+    staHost: "http://192.168.1.100",
   },
 ];
 
@@ -333,7 +326,9 @@ export const initDB = async (): Promise<void> => {
         ssid TEXT NOT NULL,
         password TEXT NOT NULL,  
         desc TEXT,           
-        help_text TEXT
+        help_text TEXT,
+        apHost TEXT NOT NULL,
+        staHost TEXT NOT NULL
       );
     `);
 
@@ -366,7 +361,7 @@ export const initDB = async (): Promise<void> => {
         console.log("Populating initial devices...");
         for (const d of INITIAL_DEVICES) {
           await database.runAsync(
-            "INSERT INTO devices (modelCode, modelName, modelImage, ssid, password, desc, help_text) VALUES (?, ?, ?, ?, ?, ?, ?);",
+            "INSERT INTO devices (modelCode, modelName, modelImage, ssid, password, desc, apHost, staHost) VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
             [
               d.modelCode,
               d.modelName,
@@ -374,7 +369,8 @@ export const initDB = async (): Promise<void> => {
               d.ssid,
               d.password,
               d.desc,
-              d.help_text,
+              d.apHost,
+              d.staHost,
             ]
           );
         }

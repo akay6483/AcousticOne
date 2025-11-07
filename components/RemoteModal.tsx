@@ -15,6 +15,9 @@ import { lightColors } from "../theme/colors"; // Import type
 // --- 1. IMPORT HAPTICS ---
 import * as Haptics from "expo-haptics";
 
+// --- 2. IMPORT DEVICE SERVICE ---
+import * as deviceService from "../services/deviceService";
+
 // --- Button Images (no change) ---
 const buttonImages = {
   default: require("../assets/images/button-default.png"),
@@ -37,7 +40,7 @@ interface RemoteModalProps {
   onClose: () => void;
 }
 
-// --- Remote Button (Refactored to use useTheme) ---
+// --- Remote Button (Unchanged) ---
 const RemoteButton: React.FC<RemoteButtonProps> = ({
   label,
   icon,
@@ -45,25 +48,20 @@ const RemoteButton: React.FC<RemoteButtonProps> = ({
   buttonType = "default",
   textColor,
 }) => {
-  // --- 2. GET HAPTICS SETTING FROM USE THEME ---
-  const { colors, isHapticsEnabled } = useTheme(); // Button gets its own theme
-  const styles = useMemo(() => getButtonStyles(colors), [colors]); // Memoized styles
+  const { colors, isHapticsEnabled } = useTheme();
+  const styles = useMemo(() => getButtonStyles(colors), [colors]);
   const sourceImage = buttonImages[buttonType];
 
-  // --- 3. CREATE A WRAPPED PRESS HANDLER ---
   const handlePress = () => {
-    // Fire haptics if enabled
     if (isHapticsEnabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    // Call the original onPress function
     onPress();
   };
 
   return (
     <Pressable
       style={({ pressed }) => [styles.button, { opacity: pressed ? 0.75 : 1 }]}
-      // --- 4. USE THE NEW WRAPPED HANDLER ---
       onPress={handlePress}
     >
       <ImageBackground
@@ -77,7 +75,7 @@ const RemoteButton: React.FC<RemoteButtonProps> = ({
           <Text
             style={[
               styles.buttonText,
-              { color: textColor || colors.remoteButtonText }, // Use theme color
+              { color: textColor || colors.remoteButtonText },
             ]}
           >
             {label}
@@ -88,17 +86,13 @@ const RemoteButton: React.FC<RemoteButtonProps> = ({
   );
 };
 
-// --- Remote Modal (Refactored to use useTheme) ---
+// --- Remote Modal ---
 export const RemoteModal: React.FC<RemoteModalProps> = ({
   visible,
   onClose,
 }) => {
-  const { colors } = useTheme(); // Modal gets the theme
-  const styles = useMemo(() => getModalStyles(colors), [colors]); // Memoized styles
-
-  const handleButtonPress = (action: string) => {
-    console.log(`Remote button pressed: ${action}`);
-  };
+  const { colors } = useTheme();
+  const styles = useMemo(() => getModalStyles(colors), [colors]);
 
   return (
     <SafeAreaProvider>
@@ -115,7 +109,7 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
               <MaterialCommunityIcons
                 name="remote"
                 size={24}
-                color={colors.icon} // Use theme color
+                color={colors.icon}
                 style={styles.headerIcon}
               />
               <Text style={styles.headerTitle}>Remote</Text>
@@ -124,103 +118,135 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
               </Pressable>
             </View>
 
-            {/* Buttons Grid (Updated icon/text colors) */}
+            {/* --- BUTTONS GRID (Updated with 1-based string codes from old app) --- */}
             <View style={styles.gridContainer}>
-              {/* Row 1 */}
+              {/* Row 1 (Codes: 1, 2, and Mute) */}
               <RemoteButton
-                onPress={() => handleButtonPress("Power")}
+                onPress={() => deviceService.sendIR("1")} // Power
                 buttonType="red"
                 icon={
                   <MaterialCommunityIcons
                     name="power"
                     size={32}
-                    color={colors.remotePowerText} // Use theme color
+                    color={colors.remotePowerText}
                   />
                 }
               />
               <RemoteButton
                 label="Mode"
-                onPress={() => handleButtonPress("Mode")}
+                onPress={() => deviceService.sendIR("2")} // Mode
               />
               <RemoteButton
-                onPress={() => handleButtonPress("Mute")}
+                onPress={deviceService.sendMute} // Mute (Using direct /mut/ command)
                 icon={
                   <MaterialCommunityIcons
                     name="volume-off"
                     size={30}
-                    color={colors.remoteButtonText} // Use theme color
+                    color={colors.remoteButtonText}
                   />
                 }
               />
 
-              {/* Row 2 */}
+              {/* Row 2 (Codes: 4, 5, 6) */}
               <RemoteButton
-                onPress={() => handleButtonPress("Play/Pause")}
+                onPress={() => deviceService.sendIR("4")} // Play/Pause
                 buttonType="blue"
                 icon={
                   <Ionicons
                     name="play"
                     size={28}
-                    color={colors.remotePlayText} // Use theme color
+                    color={colors.remotePlayText}
                   />
                 }
               />
               <RemoteButton
-                onPress={() => handleButtonPress("Previous")}
+                onPress={() => deviceService.sendIR("5")} // Previous
                 icon={
                   <Ionicons
                     name="play-skip-back"
                     size={24}
-                    color={colors.remoteButtonText} // Use theme color
+                    color={colors.remoteButtonText}
                   />
                 }
               />
               <RemoteButton
-                onPress={() => handleButtonPress("Next")}
+                onPress={() => deviceService.sendIR("6")} // Next
                 icon={
                   <Ionicons
                     name="play-skip-forward"
                     size={24}
-                    color={colors.remoteButtonText} // Use theme color
+                    color={colors.remoteButtonText}
                   />
                 }
               />
 
-              {/* Row 3 */}
+              {/* Row 3 (Codes: 7, 8, 9) */}
               <RemoteButton
                 label="EQ"
-                onPress={() => handleButtonPress("EQ")}
+                onPress={() => deviceService.sendIR("7")} // EQ
                 buttonType="purple"
-                textColor={colors.remoteEqText} // Use theme color
+                textColor={colors.remoteEqText}
               />
               <RemoteButton
                 label="VOL-"
-                onPress={() => handleButtonPress("Vol-")}
+                onPress={() => deviceService.sendIR("8")} // VOL-
               />
               <RemoteButton
                 label="VOL+"
-                onPress={() => handleButtonPress("Vol+")}
+                onPress={() => deviceService.sendIR("9")} // VOL+
               />
 
-              {/* Row 4 (no change) */}
-              <RemoteButton label="0" onPress={() => handleButtonPress("0")} />
+              {/* Row 4 (Codes: 10, 11, 12) */}
+              <RemoteButton
+                label="0"
+                onPress={() => deviceService.sendIR("10")} // 0
+              />
               <RemoteButton
                 label="RPT"
-                onPress={() => handleButtonPress("Repeat")}
+                onPress={() => deviceService.sendIR("11")} // Repeat
               />
               <RemoteButton
                 label="U/SD"
-                onPress={() => handleButtonPress("U/SD")}
+                onPress={() => deviceService.sendIR("12")} // U/SD
               />
 
-              {/* Number Pad (no change) */}
-              {Array.from({ length: 9 }, (_, i) => (
-                <RemoteButton
-                  key={i + 1}
-                  label={`${i + 1}`}
-                  onPress={() => handleButtonPress(`${i + 1}`)}
-                />
-              ))}
+              {/* Number Pad (Codes: 13-21) */}
+              <RemoteButton
+                label="1"
+                onPress={() => deviceService.sendIR("13")}
+              />
+              <RemoteButton
+                label="2"
+                onPress={() => deviceService.sendIR("14")}
+              />
+              <RemoteButton
+                label="3"
+                onPress={() => deviceService.sendIR("15")}
+              />
+              <RemoteButton
+                label="4"
+                onPress={() => deviceService.sendIR("16")}
+              />
+              <RemoteButton
+                label="5"
+                onPress={() => deviceService.sendIR("17")}
+              />
+              <RemoteButton
+                label="6"
+                onPress={() => deviceService.sendIR("18")}
+              />
+              <RemoteButton
+                label="7"
+                onPress={() => deviceService.sendIR("19")}
+              />
+              <RemoteButton
+                label="8"
+                onPress={() => deviceService.sendIR("20")}
+              />
+              <RemoteButton
+                label="9"
+                onPress={() => deviceService.sendIR("21")}
+              />
             </View>
           </SafeAreaView>
         </View>
@@ -229,23 +255,23 @@ export const RemoteModal: React.FC<RemoteModalProps> = ({
   );
 };
 
-// --- Style factory for the MODAL ---
+// --- STYLES (Unchanged) ---
 const getModalStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: colors.modalOverlay, // Use theme color
+      backgroundColor: colors.modalOverlay,
       justifyContent: "flex-end",
     },
     modalContainer: {
-      backgroundColor: colors.remoteModalBg, // Use theme color
+      backgroundColor: colors.remoteModalBg,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingTop: 20,
       paddingBottom: 40,
       alignItems: "center",
       borderWidth: 1,
-      borderColor: "#555", // This could also be themed: colors.border
+      borderColor: "#555",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: -4 },
       shadowOpacity: 0.4,
@@ -268,7 +294,7 @@ const getModalStyles = (colors: typeof lightColors) =>
       flex: 2,
       fontSize: 22,
       fontWeight: "700",
-      color: colors.text, // Use theme color
+      color: colors.text,
       textAlign: "center",
     },
     closeButton: {
@@ -284,7 +310,6 @@ const getModalStyles = (colors: typeof lightColors) =>
     },
   });
 
-// --- Style factory for the BUTTON ---
 const getButtonStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     button: {

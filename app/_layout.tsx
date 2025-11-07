@@ -53,12 +53,13 @@ function ThemedDrawer() {
           ),
         }}
       />
+
       <Drawer.Screen
-        name="(drawer)/profile"
+        name="(drawer)/info"
         options={{
-          title: "Profile",
+          title: "Info",
           drawerIcon: ({ color, size }) => (
-            <Ionicons name="person" color={color} size={size} />
+            <AntDesign name="info-circle" color={color} size={size} />
           ),
         }}
       />
@@ -71,12 +72,35 @@ function ThemedDrawer() {
           ),
         }}
       />
+
       <Drawer.Screen
-        name="(drawer)/info"
+        name="(drawer)/privacy"
         options={{
-          title: "Info",
+          title: "Privacy Policy",
           drawerIcon: ({ color, size }) => (
-            <AntDesign name="info-circle" color={color} size={size} />
+            <Ionicons
+              name="shield-checkmark-outline"
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="(drawer)/terms"
+        options={{
+          title: "Terms of Use",
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="document-text-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="(drawer)/support"
+        options={{
+          title: "Support",
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="help-buoy-outline" color={color} size={size} />
           ),
         }}
       />

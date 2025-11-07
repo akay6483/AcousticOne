@@ -19,17 +19,17 @@ import { ModelSelectionModal } from "../../components/ModelSelectionModal";
 import { Devices, getDevices } from "../../services/database";
 
 // --- API and STORAGE ---
-// --- All API calls and connection logic have been removed ---
+import { setApiHost } from "../../services/deviceService";
+import {
+  ConnectionMode,
+  loadConnectionMode,
+  saveConnectionMode,
+} from "../../services/storage";
 
 const MODEL_IMAGES: { [key: string]: any } = {
   pe_pro: require("../../assets/images/favicon.png"),
   pv_pro: require("../../assets/images/splash-icon.png"),
 };
-
-const ESP_HOST_AP = "http://192.168.4.1";
-const ESP_HOST_STA = "http://<YOUR_DEVICE_IP>";
-
-type ConnectionMode = "AP_MODE" | "NETWORK_MODE";
 
 export default function DeviceConnectScreen() {
   const { colors } = useTheme();
@@ -37,23 +37,17 @@ export default function DeviceConnectScreen() {
 
   const [models, setModels] = useState<Devices[]>([]);
   const [selectedModel, setSelectedModel] = useState<Devices | null>(null);
+
   const [connectionMode, setConnectionMode] =
     useState<ConnectionMode>("AP_MODE");
 
-  // --- All connection state and refs are removed ---
-  // - connectionStatus
-  // - isConnecting
-  // - pingIntervalRef
-  // - hostRef
-  // - AppState listener
-
   const [isModelModalVisible, setIsModelModalVisible] = useState(false);
-  const [isHelpModalVisible, setIsHelpModalVisible] = useState(false); // We keep this
+  const [isHelpModalVisible, setIsHelpModalVisible] = useState(false);
   const [isDeviceInfoModalVisible, setIsDeviceInfoModalVisible] =
     useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // --- Data Loading Function (unchanged) ---
+  // --- Data Loading Function ---
   const loadDevices = async () => {
     try {
       const deviceList = await getDevices();
@@ -67,63 +61,70 @@ export default function DeviceConnectScreen() {
     }
   };
 
-  // --- All connection functions are removed ---
-  // - syncDeviceState
-  // - stopConnectionLoop
-  // - startConnectionLoop
-
-  // --- Handler for ModelSelectionModal (unchanged) ---
+  // --- Handler for ModelSelectionModal ---
   const handleSelectModel = (model: Devices) => {
     setSelectedModel(model);
     setIsModelModalVisible(false);
   };
 
-  // --- Effects (Simplified) ---
+  // --- Effects ---
   useEffect(() => {
+    // Load device models from SQLite
     loadDevices();
+
+    // Load last connection mode from AsyncStorage
+    const loadMode = async () => {
+      const savedMode = await loadConnectionMode();
+      setConnectionMode(savedMode);
+    };
+    loadMode();
   }, []);
 
-  // --- AppState useEffect removed ---
+  // Effect to update the API host
+  useEffect(() => {
+    if (!selectedModel) {
+      return;
+    }
+
+    if (connectionMode === "AP_MODE") {
+      setApiHost(selectedModel.apHost);
+    } else {
+      setApiHost(selectedModel.staHost);
+    }
+
+    // Also save the new mode selection to storage
+    saveConnectionMode(connectionMode);
+  }, [connectionMode, selectedModel]);
 
   // --- Rendering Functions ---
+
+  // --- FIX: Corrected shadow style to not use colors.shadow ---
   const cardShadowStyle = useMemo(
     () => ({
-      backgroundColor: colors.card,
-      borderRadius: 12,
-      marginBottom: 16,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
+      shadowColor: "#000", // Hardcoded shadow color
+      shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
-      shadowRadius: 6,
-      elevation: 3,
+      shadowRadius: 4,
+      elevation: 3, // for Android
     }),
-    [colors]
+    [] // This shadow is static and doesn't depend on colors
   );
 
   const renderModelItem = (model: Devices) => (
-    <TouchableOpacity
-      key={model.modelCode}
-      style={styles.modelItem}
-      onPress={() => setIsModelModalVisible(true)}
-    >
-      {MODEL_IMAGES[model.modelImage] ? (
-        <Image
-          source={MODEL_IMAGES[model.modelImage]}
-          style={styles.modelImage}
-        />
-      ) : (
-        <View
-          style={[styles.modelAvatar, { backgroundColor: colors.inactiveTint }]}
-        >
-          <Text style={styles.modelAvatarText}>
-            {model.modelName.substring(0, 1)}
-          </Text>
-        </View>
-      )}
-      <View style={styles.modelDetails}>
-        <Text style={styles.modelName}>{model.modelName}</Text>
+    <View style={styles.modelItemContainer}>
+      <Image
+        source={MODEL_IMAGES[model.modelImage] || MODEL_IMAGES["pv_pro"]} // Fallback image
+        style={styles.modelImage}
+        resizeMode="contain"
+      />
+      <View style={styles.modelTextContainer}>
+        <Text style={styles.modelNameText}>{model.modelName}</Text>
+        <Text style={styles.modelCodeText}>Model: {model.modelCode}</Text>
       </View>
-    </TouchableOpacity>
+      <TouchableOpacity onPress={() => setIsModelModalVisible(true)}>
+        <FontAwesome name="exchange" size={20} color={colors.primary} />
+      </TouchableOpacity>
+    </View>
   );
 
   if (!selectedModel) {
@@ -142,39 +143,28 @@ export default function DeviceConnectScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <View style={[styles.card, cardShadowStyle]}>
+        {/* Header with Help and Info buttons */}
         <View style={styles.cardHeader}>
-          <Text style={[styles.cardTitle, { color: colors.textMuted }]}>
-            Model Selector
-          </Text>
-          <View style={styles.cardHeaderIcons}>
-            {/* --- MODIFIED: Help button moved here --- */}
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => setIsHelpModalVisible(true)}
-            >
-              <Ionicons
-                name="help-circle-outline"
-                size={22}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => setIsDeviceInfoModalVisible(true)}
-            >
-              <Ionicons
-                name="information-circle-outline"
-                size={22}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => setIsModelModalVisible(true)}
-            >
-              <FontAwesome name="exchange" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => setIsHelpModalVisible(true)}
+          >
+            <Ionicons
+              name="help-circle-outline"
+              size={26}
+              color={colors.icon}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => setIsDeviceInfoModalVisible(true)}
+          >
+            <Ionicons
+              name="information-circle-outline"
+              size={26}
+              color={colors.icon}
+            />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.cardContent}>
@@ -197,10 +187,6 @@ export default function DeviceConnectScreen() {
               ]}
               onPress={() => {
                 setConnectionMode("AP_MODE");
-                Alert.alert(
-                  "Mode Set",
-                  `AP Mode selected. Host will be ${ESP_HOST_AP}`
-                );
               }}
             >
               <Ionicons
@@ -235,10 +221,6 @@ export default function DeviceConnectScreen() {
               ]}
               onPress={() => {
                 setConnectionMode("NETWORK_MODE");
-                Alert.alert(
-                  "Mode Set",
-                  `Network Mode selected. Host will be ${ESP_HOST_STA}`
-                );
               }}
             >
               <Ionicons
@@ -266,8 +248,6 @@ export default function DeviceConnectScreen() {
           </View>
         </View>
       </View>
-
-      {/* --- MODIFIED: "Status" card completely REMOVED --- */}
 
       {/* --- Modals --- */}
       {models.length > 0 && selectedModel && (
@@ -304,128 +284,85 @@ const getScreenStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      padding: 16,
     },
     loadingContainer: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
+      backgroundColor: colors.background,
     },
     loadingText: {
       marginTop: 10,
+      color: colors.textMuted,
       fontSize: 16,
     },
     card: {
-      backgroundColor: colors.card,
+      marginHorizontal: 16,
+      marginTop: 16,
+      marginBottom: 8,
       borderRadius: 12,
-      marginBottom: 16,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
-      elevation: 3,
+      backgroundColor: colors.card,
     },
     cardHeader: {
       flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      justifyContent: "flex-end",
+      paddingTop: 12,
+      paddingHorizontal: 12,
     },
-    cardTitle: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: colors.textMuted,
-    },
-    cardHeaderIcons: {
-      flexDirection: "row",
-    },
-    iconButton: {
+    headerButton: {
+      marginLeft: 12,
       padding: 4,
-      marginLeft: 8,
     },
     cardContent: {
       padding: 16,
+      paddingTop: 8,
     },
-    modelItem: {
+    modelItemContainer: {
       flexDirection: "row",
       alignItems: "center",
-      paddingVertical: 8,
     },
     modelImage: {
-      width: 40,
-      height: 40,
-      borderRadius: 8,
-      marginRight: 12,
+      width: 60,
+      height: 60,
+      marginRight: 16,
     },
-    modelAvatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      justifyContent: "center",
-      alignItems: "center",
-      marginRight: 12,
-    },
-    modelAvatarText: {
-      color: "#ffffff",
-      fontWeight: "bold",
-      fontSize: 18,
-    },
-    modelDetails: {
+    modelTextContainer: {
       flex: 1,
-      justifyContent: "center",
     },
-    modelName: {
-      fontSize: 17,
-      fontWeight: "700",
+    modelNameText: {
       color: colors.text,
-      marginBottom: 4,
+      fontSize: 22,
+      fontWeight: "bold",
+    },
+    modelCodeText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginTop: 2,
     },
     separator: {
       height: 1,
       backgroundColor: colors.border,
-      marginVertical: 16,
-    },
-    statusContent: {
-      // Kept for the "Help & Info" card's text
-      flexDirection: "row",
-      alignItems: "center",
-      height: 30,
-    },
-    statusText: {
-      // Kept for the "Help & Info" card's text
-      fontSize: 16,
-      marginLeft: 8,
+      marginVertical: 20,
     },
     modeSelectorContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
-      borderWidth: 1,
-      borderColor: colors.primary,
-      borderRadius: 10,
-      overflow: "hidden",
     },
     modeButton: {
       flex: 1,
-      paddingVertical: 10,
       flexDirection: "row",
-      justifyContent: "center",
       alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 12,
+      borderRadius: 8,
+      borderWidth: 1.5,
+      marginHorizontal: 6,
     },
     modeButtonSelected: {
-      backgroundColor: colors.primary,
+      // This is a marker style, the actual styling is done inline
     },
     modeButtonText: {
       fontSize: 14,
       fontWeight: "600",
-      color: colors.text,
-    },
-    modalBackdrop: {
-      flex: 1,
-      backgroundColor: colors.modalOverlay,
-      justifyContent: "center",
-      alignItems: "center",
-      padding: 20,
     },
   });
