@@ -6,10 +6,15 @@ import { ThemeMode } from "../theme/ThemeContext";
 // Use the preset_values type to define our settings structure
 export type LastSettings = Preset["preset_values"];
 
+// --- NEW: Export ConnectionMode so it can be shared ---
+export type ConnectionMode = "AP_MODE" | "NETWORK_MODE";
+
 // --- Storage Keys ---
 const LAST_SETTINGS_KEY = "@AcousticOne:LastSettings";
 const HAPTICS_STORAGE_KEY = "@AcousticOne:HapticsEnabled";
-const THEME_STORAGE_KEY = "APP_THEME_MODE"; // --- ADDED ---
+const THEME_STORAGE_KEY = "APP_THEME_MODE";
+// --- NEW ---
+const CONNECTION_MODE_KEY = "@AcousticOne:ConnectionMode";
 
 // --- Last Settings Functions (Unchanged) ---
 /**
@@ -77,7 +82,7 @@ export const loadHapticsSetting = async (): Promise<boolean> => {
   }
 };
 
-// --- Theme Settings Functions (NEW) ---
+// --- Theme Settings Functions (Unchanged) ---
 
 /**
  * Saves the user's theme preference to AsyncStorage.
@@ -110,5 +115,45 @@ export const loadThemeSetting = async (): Promise<ThemeMode> => {
   } catch (e) {
     console.error("Failed to load theme setting, defaulting to 'auto'.", e);
     return "auto";
+  }
+};
+
+// --- Connection Mode Functions (NEW) ---
+
+/**
+ * Saves the user's last selected connection mode.
+ */
+export const saveConnectionMode = async (
+  mode: ConnectionMode
+): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(CONNECTION_MODE_KEY, mode);
+    console.log("Connection mode saved:", mode);
+  } catch (e) {
+    console.error("Failed to save connection mode to storage", e);
+  }
+};
+
+/**
+ * Loads the user's last selected connection mode.
+ * @returns The theme mode, defaulting to `'AP_MODE'` if not found.
+ */
+export const loadConnectionMode = async (): Promise<ConnectionMode> => {
+  try {
+    const storedValue = (await AsyncStorage.getItem(
+      CONNECTION_MODE_KEY
+    )) as ConnectionMode;
+    if (storedValue) {
+      console.log("Connection mode loaded:", storedValue);
+      return storedValue;
+    }
+    console.log("No connection mode found, defaulting to 'AP_MODE'.");
+    return "AP_MODE";
+  } catch (e) {
+    console.error(
+      "Failed to load connection mode, defaulting to 'AP_MODE'.",
+      e
+    );
+    return "AP_MODE";
   }
 };

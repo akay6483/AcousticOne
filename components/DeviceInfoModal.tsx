@@ -144,23 +144,6 @@ export const DeviceInfoModal: React.FC<DeviceInfoModalProps> = ({
                 </Pressable>
               </View>
             </View>
-
-            {/* Additional Help Text */}
-            {model.help_text && (
-              <View>
-                <Text style={[styles.sectionTitle, { color: colors.primary }]}>
-                  Troubleshooting Tip
-                </Text>
-                <Text
-                  style={[
-                    styles.detailValue,
-                    { color: colors.textMuted, textAlign: "left" },
-                  ]}
-                >
-                  {model.help_text}
-                </Text>
-              </View>
-            )}
           </ScrollView>
         </View>
       </View>
