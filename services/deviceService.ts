@@ -154,3 +154,87 @@ export const sendAllParameters = (settings: LastSettings) => {
   }
   console.log("--- All parameters queued ---");
 };
+
+/**
+ * Checks with the device if its state has changed.
+ * @returns true if the device state has changed, false otherwise.
+ */
+export const checkForUpdate = async (): Promise<boolean> => {
+  const url = `${espHost}/isupdatable/`;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000); // 1 sec timeout
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return false;
+
+    const responseText = await response.text();
+    // The device responds with "updatable" if changed
+    return responseText.includes("updatable");
+  } catch (error) {
+    // console.error("Error checking for update:", error);
+    return false;
+  }
+};
+
+/**
+ * Fetches the complete current settings from the device.
+ * @returns A LastSettings object or null if parsing fails.
+ */
+export const fetchAllParameters = async (): Promise<LastSettings | null> => {
+  const url = `${espHost}/getparam/`;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 sec timeout
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) throw new Error("Network response was not ok");
+
+    const responseText = await response.text(); // e.g., "prm/50/0/0/..." [cite: 108]
+    return parseParamString(responseText);
+  } catch (error) {
+    console.error("Error fetching all parameters:", error);
+    return null;
+  }
+};
+
+/**
+ * Parses the "prm/..." string from the device.
+ *
+ */
+const parseParamString = (paramString: string): LastSettings | null => {
+  try {
+    const parts = paramString.split("/"); // [ "prm", "50", "0", "0", ... ]
+    if (parts[0] !== "prm" || parts.length < 16) {
+      console.error("Invalid param string:", paramString);
+      return null;
+    }
+
+    const values = parts.slice(1).map(Number);
+
+    const settings: LastSettings = {
+      volume: values[0],
+      frontLeft: values[1],
+      frontRight: values[2],
+      center: values[3],
+      subwoofer: values[4], // Note: The .ino file calls this 'subVolume' [cite: 110]
+      rearLeft: values[5],
+      rearRight: values[6],
+      bass: values[7],
+      mid: values[8],
+      treble: values[9],
+      mode: INPUT_MODES_MAP[values[10]] || "AUX1", // [cite: 113, 4]
+      prologic: values[11] === 0, // Java had 0=true, 1=false
+      tone: values[12] === 1, // [cite: 114]
+      surround: values[13] === 1, // [cite: 114]
+      mixed: values[14] === 1, // [cite: 114]
+    };
+
+    return settings;
+  } catch (e) {
+    console.error("Failed to parse param string:", e);
+    return null;
+  }
+};
