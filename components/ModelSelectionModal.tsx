@@ -35,6 +35,7 @@ export const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({
   onSelectModel,
 }) => {
   const { colors } = useTheme();
+  // Styles are now inspired by PresetModal
   const styles = useMemo(() => getModalStyles(colors), [colors]);
 
   const renderModelItem = (model: Devices) => {
@@ -44,8 +45,8 @@ export const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({
       <TouchableOpacity
         key={model.modelCode}
         style={[
-          styles.listItemContainer,
-          { borderBottomColor: colors.border, marginLeft: 0 }, // Removed margin to span full width
+          styles.listItemContainer, // Uses border-bottom like PresetModal
+          { borderBottomColor: colors.border },
         ]}
         onPress={() => onSelectModel(model)}
       >
@@ -53,19 +54,13 @@ export const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({
         <Text
           style={[
             styles.modelName,
-            {
-              color: isSelected ? colors.primary : colors.text,
-              fontWeight: isSelected ? "700" : "500", // Bold if selected
-            },
+            isSelected && styles.modelNameActive, // Use active style
           ]}
         >
           {model.modelName}
         </Text>
 
-        {/* Checkmark icon on the right */}
-        {isSelected && (
-          <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-        )}
+        {/* --- CHECKMARK REMOVED --- */}
       </TouchableOpacity>
     );
   };
@@ -95,7 +90,10 @@ export const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({
 
           {/* --- List Container (Consistent with PresetModal) --- */}
           <View
-            style={[styles.listContainer, { backgroundColor: colors.card }]}
+            style={[
+              styles.listContainer, // This wrapper now has the card style
+              { backgroundColor: colors.card },
+            ]}
           >
             <ScrollView contentContainerStyle={styles.listContent}>
               {models.map(renderModelItem)}
@@ -107,7 +105,7 @@ export const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({
   );
 };
 
-// --- STYLES (Updated for PresetModal consistency) ---
+// --- STYLES (Copied from PresetModal.tsx for consistency) ---
 const getModalStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     overlay: {
@@ -117,6 +115,7 @@ const getModalStyles = (colors: typeof lightColors) =>
     },
     container: {
       height: "85%", // Matches PresetModal height
+      backgroundColor: colors.modalBackground,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 20,
@@ -126,7 +125,7 @@ const getModalStyles = (colors: typeof lightColors) =>
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      paddingBottom: 10, // Increased padding to match PresetModal header height
+      paddingBottom: 10,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
@@ -145,13 +144,13 @@ const getModalStyles = (colors: typeof lightColors) =>
       padding: 4,
       width: 32,
     },
-    // --- List Styles (Modified to match PresetModal list view) ---
+    // --- List Styles (Copied from PresetModal) ---
     listContainer: {
       flex: 1,
+      backgroundColor: colors.card, // The list is on a card
       borderRadius: 12,
-      marginTop: 10,
-      overflow: "hidden",
-      backgroundColor: colors.card, // Set BG to card color
+      marginTop: 20, // Space from header
+      overflow: "hidden", // Ensures list scrolls within container
     },
     listContent: {
       paddingVertical: 0, // List items handle their own padding
@@ -159,14 +158,19 @@ const getModalStyles = (colors: typeof lightColors) =>
     listItemContainer: {
       flexDirection: "row",
       alignItems: "center",
-      // Match PresetModal item padding
-      paddingHorizontal: 15,
-      paddingVertical: 15,
-      borderBottomWidth: 1,
-      // The border color is passed inline
+      borderBottomWidth: 1, // This is the separator
+      // borderBottomColor is passed inline
+      paddingVertical: 16,
+      paddingHorizontal: 15, // Match preset item padding
     },
     modelName: {
-      fontSize: 18, // Matches PresetModal text size
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: "500",
       flex: 1,
+    },
+    modelNameActive: {
+      color: colors.primary, // Selection color
+      fontWeight: "700", // Selection weight
     },
   });

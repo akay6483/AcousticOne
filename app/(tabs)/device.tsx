@@ -98,20 +98,9 @@ export default function DeviceConnectScreen() {
 
   // --- Rendering Functions ---
 
-  // --- FIX: Corrected shadow style to not use colors.shadow ---
-  const cardShadowStyle = useMemo(
-    () => ({
-      shadowColor: "#000", // Hardcoded shadow color
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3, // for Android
-    }),
-    [] // This shadow is static and doesn't depend on colors
-  );
-
   const renderModelItem = (model: Devices) => (
-    <View style={styles.modelItemContainer}>
+    // This row is styled like setting.tsx's switchRow
+    <View style={styles.cardRow}>
       <Image
         source={MODEL_IMAGES[model.modelImage] || MODEL_IMAGES["pv_pro"]} // Fallback image
         style={styles.modelImage}
@@ -121,8 +110,29 @@ export default function DeviceConnectScreen() {
         <Text style={styles.modelNameText}>{model.modelName}</Text>
         <Text style={styles.modelCodeText}>Model: {model.modelCode}</Text>
       </View>
-      <TouchableOpacity onPress={() => setIsModelModalVisible(true)}>
-        <FontAwesome name="exchange" size={20} color={colors.primary} />
+
+      {/* Grouped buttons, all using colors.icon */}
+      <TouchableOpacity
+        style={styles.headerButton}
+        onPress={() => setIsHelpModalVisible(true)}
+      >
+        <Ionicons name="help-circle-outline" size={26} color={colors.icon} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.headerButton}
+        onPress={() => setIsDeviceInfoModalVisible(true)}
+      >
+        <Ionicons
+          name="information-circle-outline"
+          size={26}
+          color={colors.icon}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.headerButton}
+        onPress={() => setIsModelModalVisible(true)}
+      >
+        <FontAwesome name="exchange" size={22} color={colors.icon} />
       </TouchableOpacity>
     </View>
   );
@@ -141,112 +151,80 @@ export default function DeviceConnectScreen() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.scrollContentContainer}
     >
-      <View style={[styles.card, cardShadowStyle]}>
-        {/* Header with Help and Info buttons */}
-        <View style={styles.cardHeader}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => setIsHelpModalVisible(true)}
+      <Text style={[styles.label, { color: colors.text }]}>
+        Selected Device
+      </Text>
+      {renderModelItem(selectedModel)}
+
+      <Text style={[styles.label, { color: colors.text, marginTop: 20 }]}>
+        Connection Mode
+      </Text>
+
+      {/* This container is styled like setting.tsx's tabContainer */}
+      <View style={[styles.tabContainer, { backgroundColor: colors.card }]}>
+        <TouchableOpacity
+          style={[
+            styles.modeButton,
+            connectionMode === "AP_MODE" && [
+              styles.tabButtonActive,
+              { backgroundColor: colors.primary },
+            ],
+          ]}
+          onPress={() => {
+            setConnectionMode("AP_MODE");
+          }}
+        >
+          <Ionicons
+            name="wifi-outline"
+            size={18}
+            color={connectionMode === "AP_MODE" ? colors.card : colors.icon}
+            style={{ marginRight: 8 }}
+          />
+          <Text
+            style={[
+              styles.modeButtonText,
+              {
+                color: connectionMode === "AP_MODE" ? colors.card : colors.icon,
+              },
+            ]}
           >
-            <Ionicons
-              name="help-circle-outline"
-              size={26}
-              color={colors.icon}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => setIsDeviceInfoModalVisible(true)}
+            AP Connect
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.modeButton,
+            connectionMode === "NETWORK_MODE" && [
+              styles.tabButtonActive,
+              { backgroundColor: colors.primary },
+            ],
+          ]}
+          onPress={() => {
+            setConnectionMode("NETWORK_MODE");
+          }}
+        >
+          <Ionicons
+            name="globe-outline"
+            size={18}
+            color={
+              connectionMode === "NETWORK_MODE" ? colors.card : colors.icon
+            }
+            style={{ marginRight: 8 }}
+          />
+          <Text
+            style={[
+              styles.modeButtonText,
+              {
+                color:
+                  connectionMode === "NETWORK_MODE" ? colors.card : colors.icon,
+              },
+            ]}
           >
-            <Ionicons
-              name="information-circle-outline"
-              size={26}
-              color={colors.icon}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.cardContent}>
-          {renderModelItem(selectedModel)}
-
-          <View style={styles.separator} />
-
-          <View style={styles.modeSelectorContainer}>
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                connectionMode === "AP_MODE" && styles.modeButtonSelected,
-                {
-                  backgroundColor:
-                    connectionMode === "AP_MODE"
-                      ? colors.primary
-                      : colors.background,
-                  borderColor: colors.primary,
-                },
-              ]}
-              onPress={() => {
-                setConnectionMode("AP_MODE");
-              }}
-            >
-              <Ionicons
-                name="wifi-outline"
-                size={18}
-                color={connectionMode === "AP_MODE" ? colors.card : colors.text}
-                style={{ marginRight: 8 }}
-              />
-              <Text
-                style={[
-                  styles.modeButtonText,
-                  {
-                    color:
-                      connectionMode === "AP_MODE" ? colors.card : colors.text,
-                  },
-                ]}
-              >
-                AP Connect
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                connectionMode === "NETWORK_MODE" && styles.modeButtonSelected,
-                {
-                  backgroundColor:
-                    connectionMode === "NETWORK_MODE"
-                      ? colors.primary
-                      : colors.background,
-                  borderColor: colors.primary,
-                },
-              ]}
-              onPress={() => {
-                setConnectionMode("NETWORK_MODE");
-              }}
-            >
-              <Ionicons
-                name="globe-outline"
-                size={18}
-                color={
-                  connectionMode === "NETWORK_MODE" ? colors.card : colors.text
-                }
-                style={{ marginRight: 8 }}
-              />
-              <Text
-                style={[
-                  styles.modeButtonText,
-                  {
-                    color:
-                      connectionMode === "NETWORK_MODE"
-                        ? colors.card
-                        : colors.text,
-                  },
-                ]}
-              >
-                Network Connect
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+            Network Connect
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* --- Modals --- */}
@@ -280,10 +258,15 @@ export default function DeviceConnectScreen() {
 }
 
 // --- STYLES ---
+// (Heavily inspired by setting.tsx)
 const getScreenStyles = (colors: typeof lightColors) =>
   StyleSheet.create({
     container: {
       flex: 1,
+      padding: 20,
+    },
+    scrollContentContainer: {
+      paddingBottom: 40, // Ensure content doesn't hide behind tab bar
     },
     loadingContainer: {
       flex: 1,
@@ -296,34 +279,28 @@ const getScreenStyles = (colors: typeof lightColors) =>
       color: colors.textMuted,
       fontSize: 16,
     },
-    card: {
-      marginHorizontal: 16,
-      marginTop: 16,
-      marginBottom: 8,
-      borderRadius: 12,
-      backgroundColor: colors.card,
+    // Label style from setting.tsx
+    label: {
+      fontSize: 20,
+      fontWeight: "bold",
+      marginBottom: 10,
     },
-    cardHeader: {
+    // cardRow style from setting.tsx's switchRow
+    cardRow: {
       flexDirection: "row",
-      justifyContent: "flex-end",
-      paddingTop: 12,
-      paddingHorizontal: 12,
+      alignItems: "center",
+      backgroundColor: colors.card,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 8,
     },
     headerButton: {
       marginLeft: 12,
       padding: 4,
     },
-    cardContent: {
-      padding: 16,
-      paddingTop: 8,
-    },
-    modelItemContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
     modelImage: {
-      width: 60,
-      height: 60,
+      width: 40, // Smaller to fit the row
+      height: 40,
       marginRight: 16,
     },
     modelTextContainer: {
@@ -331,7 +308,7 @@ const getScreenStyles = (colors: typeof lightColors) =>
     },
     modelNameText: {
       color: colors.text,
-      fontSize: 22,
+      fontSize: 18, // Slightly smaller to match settings
       fontWeight: "bold",
     },
     modelCodeText: {
@@ -339,27 +316,25 @@ const getScreenStyles = (colors: typeof lightColors) =>
       fontSize: 14,
       marginTop: 2,
     },
-    separator: {
-      height: 1,
-      backgroundColor: colors.border,
-      marginVertical: 20,
-    },
-    modeSelectorContainer: {
+    // tabContainer style from setting.tsx
+    tabContainer: {
       flexDirection: "row",
-      justifyContent: "space-between",
+      borderRadius: 10,
+      padding: 4,
+      justifyContent: "space-around",
     },
+    // modeButton style from setting.tsx's tabButton
     modeButton: {
       flex: 1,
-      flexDirection: "row",
+      flexDirection: "row", // Keep icon and text
       alignItems: "center",
       justifyContent: "center",
-      paddingVertical: 12,
+      paddingVertical: 10,
       borderRadius: 8,
-      borderWidth: 1.5,
-      marginHorizontal: 6,
+      marginHorizontal: 2, // Add slight margin
     },
-    modeButtonSelected: {
-      // This is a marker style, the actual styling is done inline
+    tabButtonActive: {
+      // backgroundColor is set inline
     },
     modeButtonText: {
       fontSize: 14,
