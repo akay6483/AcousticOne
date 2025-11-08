@@ -16,9 +16,8 @@ export default function PrivacyPolicy() {
       <Text style={styles.date}>Last updated: November 8, 2025</Text>
 
       <Text style={styles.paragraph}>
-        Welcome to AcousticOne. Your privacy is important to us. This Privacy
-        Policy explains how we collect, use, disclose, and safeguard your
-        information when you use our mobile application (the "App").
+        This Privacy Policy explains how we collect, use, disclose, and
+        safeguard your information when you use AcousticsOne application.
       </Text>
 
       <Text style={styles.heading}>1. Information We Collect</Text>
@@ -35,28 +34,20 @@ export default function PrivacyPolicy() {
         provide core app functionality.
       </Text>
       <Text style={styles.listItem}>
-        • <Text style={styles.bold}>Microphone (RECORD_AUDIO):</Text> We access
-        the microphone solely to sample audio for the automatic genre detection
-        feature. This audio is processed on-device and is not stored or
-        transmitted.
+        • <Text style={styles.bold}>Microphone:</Text> We access the microphone
+        solely to sample audio for the automatic genre detection feature. This
+        audio is processed on-device and is not stored or transmitted.
       </Text>
       <Text style={styles.listItem}>
-        •{" "}
-        <Text style={styles.bold}>
-          Location (ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION):
-        </Text>{" "}
-        We require location access to read your WiFi network name (SSID). This
-        is necessary to find and connect to your device on the network. We do
-        not track or store your geographic location.
+        • <Text style={styles.bold}>Location:</Text> We require location access
+        to read your WiFi network name (SSID). This is necessary to find and
+        connect to your device on the network. We do not track or store your
+        geographic location.
       </Text>
       <Text style={styles.listItem}>
-        •{" "}
-        <Text style={styles.bold}>
-          Local Network & Wi-Fi (ACCESS_WIFI_STATE,
-          NSLocalNetworkUsageDescription):
-        </Text>{" "}
-        We use this to discover and connect to your audio system hardware on
-        your local network.
+        • <Text style={styles.bold}>Local Network & Wi-Fi:</Text> We use this to
+        discover and connect to your audio system hardware on your local
+        network.
       </Text>
 
       <Text style={styles.subHeading}>Device and Usage Data</Text>
@@ -85,8 +76,7 @@ export default function PrivacyPolicy() {
       <Text style={styles.paragraph}>
         We do not sell, trade, or rent your personal information. We may share
         anonymous, aggregated data with third-party service providers for
-        analytics and crash reporting (e.g., Google Firebase) to help us improve
-        the App.
+        analytics and crash reporting to help us improve the App.
       </Text>
 
       <Text style={styles.heading}>4. Data Security</Text>
@@ -102,12 +92,6 @@ export default function PrivacyPolicy() {
         permissions in your device's settings menu.
       </Text>
 
-      <Text style={styles.heading}>6. Children's Privacy</Text>
-      <Text style={styles.paragraph}>
-        This App is not intended for use by children under the age of 13. We do
-        not knowingly collect personal information from children under 13.
-      </Text>
-
       <Text style={styles.heading}>7. Changes to This Policy</Text>
       <Text style={styles.paragraph}>
         We may update this Privacy Policy from time to time. We will notify you
@@ -118,7 +102,7 @@ export default function PrivacyPolicy() {
       <Text style={styles.heading}>8. Contact Us</Text>
       <Text style={styles.paragraph}>
         If you have questions or comments about this Privacy Policy, please
-        contact us at: privacy@acousticone.app
+        contact us at: pvacoustics@gmail.com
       </Text>
     </ScrollView>
   );
