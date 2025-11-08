@@ -326,7 +326,6 @@ export const initDB = async (): Promise<void> => {
         ssid TEXT NOT NULL,
         password TEXT NOT NULL,  
         desc TEXT,           
-        help_text TEXT,
         apHost TEXT NOT NULL,
         staHost TEXT NOT NULL
       );
