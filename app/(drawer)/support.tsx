@@ -16,12 +16,12 @@ export default function Support() {
   const styles = getStyles(colors);
 
   const handleEmailPress = () => {
-    Linking.openURL("mailto:support@acousticone.app?subject=Support Request");
+    Linking.openURL("mailto:pvacoustcis@gmail.com?subject=Support Request");
   };
 
   const handleIssuePress = () => {
     // Replace with your issue tracker or a "mailto" link
-    Linking.openURL("mailto:bugs@acousticone.app?subject=Bug Report");
+    Linking.openURL("mailto:pvacoustcis@gmail.com?subject=Bug Report");
   };
 
   return (
@@ -39,7 +39,7 @@ export default function Support() {
             style={styles.icon}
           />
           <Text style={styles.rowLabel}>Contact Support</Text>
-          <Text style={styles.rowValue}>support@acousticone.app</Text>
+          <Text style={styles.rowValue}>pvacoustcis@gmail.com</Text>
         </TouchableOpacity>
       </View>
 

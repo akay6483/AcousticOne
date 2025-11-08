@@ -72,7 +72,15 @@ function ThemedDrawer() {
           ),
         }}
       />
-
+      <Drawer.Screen
+        name="(drawer)/support"
+        options={{
+          title: "Support",
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="help-buoy-outline" color={color} size={size} />
+          ),
+        }}
+      />
       <Drawer.Screen
         name="(drawer)/privacy"
         options={{
@@ -83,24 +91,6 @@ function ThemedDrawer() {
               color={color}
               size={size}
             />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="(drawer)/terms"
-        options={{
-          title: "Terms of Use",
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="document-text-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="(drawer)/support"
-        options={{
-          title: "Support",
-          drawerIcon: ({ color, size }) => (
-            <Ionicons name="help-buoy-outline" color={color} size={size} />
           ),
         }}
       />

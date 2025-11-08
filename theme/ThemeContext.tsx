@@ -9,8 +9,10 @@ import { useColorScheme } from "react-native";
 import { darkColors, lightColors } from "./colors";
 // --- 1. IMPORT all storage functions ---
 import {
+  loadAudioSetting,
   loadHapticsSetting,
-  loadThemeSetting,
+  loadThemeSetting, // --- NEW ---
+  saveAudioSetting,
   saveHapticsSetting,
   saveThemeSetting,
 } from "../services/storage"; // Assuming storage.ts is in ../services/
@@ -27,6 +29,8 @@ type Theme = {
   setMode: (mode: ThemeMode) => void;
   isHapticsEnabled: boolean;
   setHapticsEnabled: (isEnabled: boolean) => void;
+  isAudioEnabled: boolean; // --- NEW ---
+  setAudioEnabled: (isEnabled: boolean) => void; // --- NEW ---
 };
 
 const ThemeContext = createContext<Theme | undefined>(undefined);
@@ -34,6 +38,7 @@ const ThemeContext = createContext<Theme | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>("auto");
   const [isHapticsEnabled, setIsHapticsEnabled] = useState(true);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true); // --- NEW ---
 
   const systemScheme = useColorScheme();
 
@@ -48,6 +53,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         // Load Haptics
         const haptics = await loadHapticsSetting();
         setIsHapticsEnabled(haptics);
+
+        // --- Load Audio (NEW) ---
+        const audio = await loadAudioSetting();
+        setIsAudioEnabled(audio);
       } catch (e) {
         console.error("Failed to load settings from storage", e);
       }
@@ -67,6 +76,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setIsHapticsEnabled(isEnabled); // Update state
   };
 
+  // --- Function to save audio setting (NEW) ---
+  const updateAudio = (isEnabled: boolean) => {
+    saveAudioSetting(isEnabled); // Save to storage
+    setIsAudioEnabled(isEnabled); // Update state
+  };
+
   // Determine if dark mode is *actually* active
   const isDark = useMemo(() => {
     if (mode === "auto") {
@@ -84,8 +99,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setMode: updateMode,
       isHapticsEnabled,
       setHapticsEnabled: updateHaptics,
+      isAudioEnabled, // --- NEW ---
+      setAudioEnabled: updateAudio, // --- NEW ---
     }),
-    [isDark, mode, isHapticsEnabled]
+    [isDark, mode, isHapticsEnabled, isAudioEnabled] // --- UPDATED DEPS ---
   );
 
   return (

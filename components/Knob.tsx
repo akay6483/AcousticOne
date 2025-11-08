@@ -19,6 +19,9 @@ import { useTheme } from "../theme/ThemeContext";
 import { lightColors } from "../theme/colors";
 // import { useHaptics } from "../theme/HapticsContext"; // --- 1. REMOVED this incorrect line ---
 
+// --- Audio Service Import (NEW) ---
+import * as AudioService from "../services/audioService";
+
 // --- Prop Types (Unchanged) ---
 type KnobProps = {
   size: number;
@@ -115,8 +118,8 @@ export const Knob: React.FC<KnobProps> = ({
   step = 1,
   valueSuffix = "",
 }) => {
-  // --- 2. FIXED: Get haptics setting from useTheme ---
-  const { colors, isDark, isHapticsEnabled } = useTheme();
+  // --- 2. FIXED: Get haptics AND audio settings from useTheme ---
+  const { colors, isDark, isHapticsEnabled, isAudioEnabled } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   const CENTER = { x: size / 2, y: size / 2 };
@@ -131,20 +134,35 @@ export const Knob: React.FC<KnobProps> = ({
 
   const previousIndex = useRef(valueIndex);
 
+  // --- Load Audio Sound on Mount (NEW) ---
+  useEffect(() => {
+    // Load the sound when the component mounts
+    AudioService.loadTickSound();
+
+    // We will not unload it, so it stays ready for the app's lifetime
+  }, []);
+
   useEffect(() => {
     const newActualValue = getValueFromIndex(valueIndex, min, step);
     rotation.value = getAngleFromActualValue(newActualValue, min, max);
     previousIndex.current = valueIndex;
   }, [valueIndex, min, max, step, rotation]);
 
-  // --- 3. This haptics logic is now correct ---
+  // --- 3. This haptics AND audio logic is now correct ---
   const handleIndexChange = (newIndex: number) => {
     if (onIndexChange) {
       onIndexChange(newIndex);
     }
 
-    if (isHapticsEnabled && newIndex !== previousIndex.current) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Only trigger feedback if the index *actually* changed
+    if (newIndex !== previousIndex.current) {
+      if (isHapticsEnabled) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      if (isAudioEnabled) {
+        // This is already on the JS thread due to runOnJS
+        AudioService.playTickSound();
+      }
     }
     previousIndex.current = newIndex;
   };

@@ -7,3 +7,4 @@ npx expo install expo-location
 npx expo install expo-haptics
 npx expo install expo-file-system
 npx expo install expo-audio
+npx expo install expo-av

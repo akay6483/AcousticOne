@@ -13,8 +13,8 @@ export type ConnectionMode = "AP_MODE" | "NETWORK_MODE";
 const LAST_SETTINGS_KEY = "@AcousticOne:LastSettings";
 const HAPTICS_STORAGE_KEY = "@AcousticOne:HapticsEnabled";
 const THEME_STORAGE_KEY = "APP_THEME_MODE";
-// --- NEW ---
 const CONNECTION_MODE_KEY = "@AcousticOne:ConnectionMode";
+const AUDIO_STORAGE_KEY = "@AcousticOne:AudioEnabled"; // --- NEW KEY ---
 
 // --- Last Settings Functions (Unchanged) ---
 /**
@@ -118,7 +118,7 @@ export const loadThemeSetting = async (): Promise<ThemeMode> => {
   }
 };
 
-// --- Connection Mode Functions (NEW) ---
+// --- Connection Mode Functions (Unchanged) ---
 
 /**
  * Saves the user's last selected connection mode.
@@ -155,5 +155,37 @@ export const loadConnectionMode = async (): Promise<ConnectionMode> => {
       e
     );
     return "AP_MODE";
+  }
+};
+
+// --- Audio Settings Functions (NEW) ---
+
+/**
+ * Saves the user's audio preference to AsyncStorage.
+ */
+export const saveAudioSetting = async (isEnabled: boolean): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify(isEnabled));
+    console.log("Audio setting saved successfully.");
+  } catch (e) {
+    console.error("Failed to save audio setting to storage", e);
+  }
+};
+
+/**
+ * Loads the user's audio preference from AsyncStorage.
+ */
+export const loadAudioSetting = async (): Promise<boolean> => {
+  try {
+    const storedValue = await AsyncStorage.getItem(AUDIO_STORAGE_KEY);
+    if (storedValue !== null) {
+      console.log("Audio setting loaded successfully.");
+      return JSON.parse(storedValue);
+    }
+    console.log("No audio setting found, defaulting to true.");
+    return true; // Default to true
+  } catch (e) {
+    console.error("Failed to load audio setting, defaulting to true.", e);
+    return true;
   }
 };

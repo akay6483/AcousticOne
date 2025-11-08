@@ -3,8 +3,15 @@ import { StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../../theme/ThemeContext";
 
 export default function SettingsMenu() {
-  const { mode, setMode, colors, isHapticsEnabled, setHapticsEnabled } =
-    useTheme();
+  const {
+    mode,
+    setMode,
+    colors,
+    isHapticsEnabled,
+    setHapticsEnabled,
+    isAudioEnabled, // --- NEW ---
+    setAudioEnabled, // --- NEW ---
+  } = useTheme();
 
   const iconSize = 24; // Define icon size
 
@@ -12,7 +19,7 @@ export default function SettingsMenu() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Text style={[styles.label, { color: colors.text }]}>Display Theme</Text>
 
-      {/* --- REPLACED: Text with Icons --- */}
+      {/* --- Theme Toggle (Unchanged) --- */}
       <View style={[styles.tabContainer, { backgroundColor: colors.card }]}>
         <TouchableOpacity
           style={[
@@ -88,6 +95,30 @@ export default function SettingsMenu() {
           thumbColor={colors.thumbColor || "#ffffff"}
           onValueChange={setHapticsEnabled}
           value={isHapticsEnabled}
+        />
+      </View>
+
+      {/* --- Audio Toggle (NEW) --- */}
+      <View
+        style={[
+          styles.switchRow,
+          { backgroundColor: colors.card, marginTop: 10 }, // Added margin
+        ]}
+      >
+        <Ionicons
+          name="volume-medium-outline" // New icon
+          size={22}
+          color={colors.text}
+          style={styles.switchIcon}
+        />
+        <Text style={[styles.switchLabel, { color: colors.text }]}>
+          Audio Feedback
+        </Text>
+        <Switch
+          trackColor={{ false: colors.inactiveTint, true: colors.primary }}
+          thumbColor={colors.thumbColor || "#ffffff"}
+          onValueChange={setAudioEnabled} // Use audio setter
+          value={isAudioEnabled} // Use audio state
         />
       </View>
     </View>
